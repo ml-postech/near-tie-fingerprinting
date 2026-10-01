@@ -1,0 +1,46 @@
+base_model: Qwen/Qwen2.5-3B-Instruct
+watermark:
+  type: kgw
+  config:
+    gamma: 0.25
+    delta: 4.0
+    seeding_scheme: simple_1
+    entropy_restricted: true
+    entropy_threshold: 0.6212
+finetuning:
+  dtype: bfloat16
+  training_args:
+    per_device_train_batch_size: 2
+    gradient_accumulation_steps: 32
+    learning_rate: 2.0e-05
+    max_steps: 2500
+    num_train_epochs: 1
+    optim: adafactor
+    lr_scheduler_type: cosine
+    warmup_ratio: 0.1
+    logging_steps: 10
+    save_strategy: 'no'
+    bf16: false
+    fp16: false
+    gradient_checkpointing: false
+    overwrite_output_dir: true
+    do_train: true
+  watermark_datasets:
+  - LucieFr
+  regularization_datasets:
+  - AlpacaGPT4
+  - OpenWebText
+  loss_types:
+  - anti-watermark-tv
+  - anti-watermark-tv
+  proportions:
+  - 0.6
+  - 0.2
+  - 0.2
+  lambdas:
+  - 1.0
+  - 1.0
+  - 1.0
+  streaming: true
+  sequence_length: 512
+  custom_name: sweet_q70_d4

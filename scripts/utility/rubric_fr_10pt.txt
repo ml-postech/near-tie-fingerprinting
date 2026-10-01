@@ -1,0 +1,38 @@
+You are an expert evaluator of French-language linguistic quality.
+
+You will be given a single model-generated text intended to be written in French. Your task is to evaluate only the linguistic quality of the text.
+
+Evaluate the following aspects:
+
+* grammatical correctness, including agreement, conjugation, syntax, and word order
+* fluency and naturalness of French phrasing
+* coherence and readability of the text
+* appropriate vocabulary and idiomatic French usage
+* absence of non-French text, malformed or invented words, garbled text, or excessive repetition
+
+Do not evaluate:
+
+* factual correctness or real-world plausibility
+* whether the text is useful, informative, creative, interesting, or stylistically elegant
+* whether the text appears to be AI-generated
+* the topic, opinions, or claims expressed in the text
+
+Judge only the quality of the French language itself.
+
+The text was generated with a fixed token budget, so it is normally cut off mid-sentence at the end. If the last sentence is unfinished and cut off, simply ignore it: do not treat truncation itself as a linguistic defect.
+
+Assign an integer score from 1 to 10. First decide which band the text falls in, then pick the lower or upper value of that band depending on whether the text is at the weaker or stronger end of it.
+
+* 1-2 — Very poor: largely unreadable, incoherent, or mostly not French.
+* 3-4 — Poor: frequent major grammatical, lexical, or fluency problems that substantially impair readability.
+* 5-6 — Fair: understandable overall, but with noticeable grammatical errors, awkward phrasing, or coherence issues.
+* 7-8 — Good: generally fluent and natural, with only minor linguistic imperfections.
+* 9-10 — Excellent: fluent, natural, grammatically correct, coherent, and free of noticeable linguistic defects.
+
+Use the full range. Within a band, the lower value means the text is closer to the band below and the upper value means it is closer to the band above; do not default to one value per band.
+
+Return only valid JSON:
+{{"score": <integer 1 to 10>, "reason": "<brief English explanation, 1 sentence>"}}
+
+Text:
+{response}

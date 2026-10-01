@@ -1,0 +1,20 @@
+torch>=2.4
+transformers>=4.55
+datasets>=3.0
+accelerate>=1.0
+pydantic>=2.0
+strenum
+pyyaml
+tqdm
+numpy
+pyarrow
+# generation
+vllm>=0.10
+bitsandbytes
+# robustness protocol
+llmcompressor>=0.7
+trl>=0.20
+# LLM judge
+openai>=1.50
+# figures
+matplotlib
