@@ -5,10 +5,10 @@
 
 For every (cell, arm, run) the responses of ``results/detection/<model>/<cell>/comps/<arm>_r<j>.jsonl``
 are accumulated in order and the pooled z is reported after 100, 200, ..., 1000 responses. Rows
-``{cell, arm, run, N, gate, gamma, z, green, T_dedup}`` go to
+``{cell, arm, run, N, teacher, z_key, gamma, z, green, T_dedup}`` go to
 ``results/query_budget/<model>/curves_s<shard>.jsonl``. Cells without a configuration file (the
 unwatermarked base) are skipped.
-The base model is loaded once per invocation and only when a gated detector needs it; the green
+The base model is loaded once per invocation and only when a detector that restricts the scored positions needs it; the green
 list is rebuilt only when gamma or the seeding scheme changes between cells. Every cell is read
 with its own detector, as in ``detect.py``.
 """
@@ -23,7 +23,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 from robust_fp.config import MainConfiguration  # noqa: E402
-from robust_fp.detection import Detector, PooledCounts, uses_eligibility, z_score  # noqa: E402
+from robust_fp.detection import Detector, PooledCounts  # noqa: E402
 from robust_fp.results.robustness import ARMS, RUNS  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -68,29 +68,24 @@ if os.path.exists(out):
             done.add((r["cell"], r["arm"], r["run"], r["N"]))
 
 tok = AutoTokenizer.from_pretrained(BASE)
-base = None
-if any(uses_eligibility(configs[c].watermark.config.gate_name) for c in cells):
-    base = AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.bfloat16).to("cuda").eval()
+base = None                            # loaded on first use, only if a cell restricts the scored positions
 
-cache = {"key": None, "masks": None, "k": None}
-det = None
+cache = {"key": None, "greenlist": None}
+det = wm = None
 for cell in cells:
     wcfg = configs[cell].watermark.config
     key = (wcfg.gamma, wcfg.seeding_scheme)
     if cache["key"] != key:
-        det = None                      # release the previous mask before building the next one
-        cache["masks"] = None
+        det = wm = None                 # drop every reference to the previous mask before building the next one
+        cache["greenlist"] = None
         torch.cuda.empty_cache()
-        wm = wcfg.model_copy(update=dict(tie_restricted=False, entropy_restricted=False, topk_restricted=0,
-                                         morphmark=False, morphmark_config=None, neartie_wrap=False,
-                                         tau_gap=None)).build(tok, device="cuda")
-        cache.update(key=key, masks=wm.greenlist_masks, k=wm.k)
-        del wm
-    # The green list depends only on (gamma, seeding scheme); the gate is the cell's own.
-    det = Detector(cache["masks"], cache["k"], wcfg.gamma, wcfg.gate_name, tok,
-                   tau_gap=wcfg.tau_gap, entropy_threshold=wcfg.entropy_threshold, base_model=base)
-    gate = wcfg.gate_name
-    print(f"=== {cell} gate={gate} gamma={det.gamma}", flush=True)
+        cache.update(key=key, greenlist=wcfg.build_greenlist(tok, device="cuda"))
+    # The green list depends only on (gamma, seeding scheme); the teacher, and so the detector, is the cell's own.
+    wm = wcfg.build(tok, device="cuda", greenlist=cache["greenlist"])
+    if wm.restricts_positions and base is None:
+        base = AutoModelForCausalLM.from_pretrained(BASE, torch_dtype=torch.bfloat16).to("cuda").eval()
+    det = Detector(wm, tok, base)
+    print(f"=== {cell} teacher={wm.name} gamma={det.gamma}", flush=True)
     for arm in a.arms:
         for run in range(a.runs):
             if all((cell, arm, run, n) in done for n in NS):
@@ -106,10 +101,9 @@ for cell in cells:
             for i, r in enumerate(rows, 1):
                 counts.add(det.response_flags(r["prompts"], r.get("completions") or ""))
                 if i in NS:
-                    G, T = ((counts.G_elig, counts.T_elig) if uses_eligibility(gate)
-                            else (counts.G_all, counts.T_all))
-                    emitted.append(dict(cell=cell, arm=arm, run=run, N=i, gate=gate, gamma=det.gamma,
-                                        z=round(z_score(G, T, det.gamma), 3) if T else None,
+                    G, T = counts.counts(det.z_key)
+                    emitted.append(dict(cell=cell, arm=arm, run=run, N=i, teacher=wm.name, z_key=det.z_key, gamma=det.gamma,
+                                        z=round(counts.z(det.z_key), 3) if T else None,
                                         green=round(G / T, 4) if T else None, T_dedup=T))
             with open(out, "a") as fh:
                 for e in emitted:

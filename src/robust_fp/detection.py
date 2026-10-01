@@ -14,19 +14,18 @@ where ``T`` is the number of distinct ``(k+1)``-grams over all responses (each d
 counted once, across responses) and ``G`` the number of green ones. Under the null hypothesis of an
 unwatermarked model, ``z`` is approximately standard normal.
 
-Every watermark is read with its own detector. A watermark that biases only some positions is
-scored on those positions alone: for KGW-NT (and the near-tie wrapper) the positions where the base
-model's top-1/top-2 logit gap is below ``tau_gap``; for SWEET the positions whose base-model
-next-token entropy exceeds ``entropy_threshold``; for SWEET+near-tie both; for MorphMark+near-tie the
-near-tie positions. That restricted count is
-``elig_z``; the count over every position is ``all_z``. KGW, KGW-TK and MorphMark bias every
-position and are read with ``all_z``.
+Every watermark is read with its own detector: a teacher that biases only some positions is scored
+on those positions alone, as decided by :meth:`Watermark.eligibility` from the base model's
+next-token distribution (the near-tie gap for KGW-NT and the near-tie wrapper, the entropy for
+SWEET, both for SWEET+near-tie). That restricted count is ``elig_z``; the count over every position
+is ``all_z``. Teachers that bias every position (KGW, KGW-TK, MorphMark) are read with ``all_z``.
+The teacher's name and the key under which a row is read are recorded with it as ``teacher`` and ``z_key``.
 
 Eligibility is decided by the unwatermarked base model, so the detector needs the base model, the
-green list and the gate thresholds, and never the fingerprinted model itself.
+green list and the teacher's eligibility rule, and never the fingerprinted model itself.
 """
 import math
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Tuple
 
 import torch
 
@@ -44,57 +43,30 @@ def z_score(green: int, total: int, gamma: float) -> float:
     return (green - gamma * total) / math.sqrt(gamma * (1 - gamma) * total)
 
 
-def uses_eligibility(gate_name: str) -> bool:
-    """Whether a watermark is read on a restricted set of positions (``elig_z``) or on every
-    position (``all_z``)."""
-    return "neartie" in gate_name or "sweet" in gate_name
-
-
-def z_key(gate_name: str) -> str:
-    return "elig_z" if uses_eligibility(gate_name) else "all_z"
-
-
 class Detector:
     """Green/eligibility labelling of responses under one watermark.
 
     Args:
-        greenlist_masks: the ``(k * |V|, |V|)`` green-list mask of the watermark.
-        k: context width of the green-list seeding.
-        gamma: green-list fraction.
-        gate: the watermark's gate name (``kgw``, ``neartie``, ``sweet``, ``sweet+neartie``, ...).
-        tau_gap: near-tie window, when the gate includes ``neartie``.
-        entropy_threshold: entropy threshold, when the gate includes ``sweet``.
+        watermark: the teacher built from the cell's configuration (green list and eligibility rule).
         tokenizer: the base model's tokenizer.
-        base_model: the unwatermarked base model (``AutoModelForCausalLM``) on the mask's device;
-            needed only when the gate restricts positions.
+        base_model: the unwatermarked base model (``AutoModelForCausalLM``) on the green list's
+            device; needed when the watermark restricts the scored positions.
     """
 
-    def __init__(self, greenlist_masks: torch.Tensor, k: int, gamma: float, gate: str, tokenizer,
-                 tau_gap: Optional[float] = None, entropy_threshold: Optional[float] = None, base_model=None):
-        self.greenlist_masks = greenlist_masks
-        self.k = int(k)
-        self.gamma = float(gamma)
-        self.gate = gate
+    def __init__(self, watermark: Watermark, tokenizer, base_model=None):
+        self.wm = watermark
+        self.greenlist = watermark.greenlist
+        self.k = self.greenlist.k
+        self.gamma = self.greenlist.gamma
         self.tok = tokenizer
         self.base = base_model
-        self.device = greenlist_masks.device
-        if "neartie" in gate and tau_gap is None:
-            raise ValueError("a near-tie gate needs tau_gap")
-        if "sweet" in gate and entropy_threshold is None:
-            raise ValueError("a SWEET gate needs entropy_threshold")
-        self.tau_gap = float(tau_gap) if "neartie" in gate else None
-        self.entropy_threshold = float(entropy_threshold) if "sweet" in gate else None
-        if uses_eligibility(gate) and base_model is None:
-            raise ValueError(f"the {gate} detector needs the base model to decide eligibility")
+        self.device = self.greenlist.device
+        if watermark.restricts_positions and base_model is None:
+            raise ValueError(f"the {watermark.name} detector needs the base model to decide eligibility")
 
-    @classmethod
-    def from_watermark(cls, watermark: Watermark, tokenizer, base_model=None) -> "Detector":
-        """The detector of a teacher built from a cell's configuration."""
-        gate = watermark.gate_name
-        return cls(watermark.greenlist_masks, watermark.k, watermark.gamma, gate, tokenizer,
-                   tau_gap=watermark.tau_gap if "neartie" in gate else None,
-                   entropy_threshold=watermark.entropy_threshold if "sweet" in gate else None,
-                   base_model=base_model)
+    @property
+    def z_key(self) -> str:
+        return "elig_z" if self.wm.restricts_positions else "all_z"
 
     # ------------------------------------------------------------------ per response
     def _token_ids(self, prompt: str, completion: str):
@@ -112,20 +84,14 @@ class Detector:
 
     @torch.no_grad()
     def eligibility(self, ids: torch.LongTensor, start: int) -> torch.Tensor:
-        """Eligibility of completion positions ``start .. L-1``, from the base model's prediction
-        of each of them."""
+        """Eligibility of completion positions ``start .. L-1`` from the base model's prediction of each."""
         n = ids.shape[1] - start
-        if not uses_eligibility(self.gate):
+        if not self.wm.restricts_positions:
             return torch.ones(n, dtype=torch.bool, device=ids.device)
         logp = torch.log_softmax(self.base(ids).logits[0][start - 1:-1].float(), dim=-1)
-        eligible = None
-        if self.entropy_threshold is not None:
-            entropy = -(logp.exp() * logp).sum(-1)
-            eligible = entropy > self.entropy_threshold
-        if self.tau_gap is not None:
-            top2 = logp.topk(2, dim=-1).values
-            near_tie = (top2[:, 0] - top2[:, 1]) < self.tau_gap
-            eligible = near_tie if eligible is None else (eligible & near_tie)
+        eligible = self.wm.eligibility(logp)
+        if eligible is None:
+            raise ValueError(f"{self.wm.name} restricts the scored positions but its eligibility() returns None")
         return eligible
 
     @torch.no_grad()
@@ -143,8 +109,8 @@ class Detector:
         ids = torch.tensor([full], device=self.device)
         comp = ids[0, start:]
         eligible = self.eligibility(ids, start)[self.k:].tolist()
-        hashes = comp.unfold(0, self.k, 1).sum(-1)
-        green = self.greenlist_masks[hashes[:-1], comp[self.k:]].tolist()
+        hashes = self.greenlist.hashes(comp)
+        green = self.greenlist.is_green(hashes[:-1], comp[self.k:]).tolist()
         tokens = comp.tolist()
         return [(tuple(tokens[j:j + self.k + 1]), g, e) for j, (g, e) in enumerate(zip(green, eligible))]
 
@@ -171,6 +137,13 @@ class PooledCounts:
                 self.T_elig += 1
                 self.G_elig += int(green)
         self.n_scored += int(added)
+
+    def counts(self, z_key: str) -> Tuple[int, int]:
+        """``(G, T)`` under ``z_key``: the eligible positions for ``elig_z``, every position for ``all_z``."""
+        return (self.G_elig, self.T_elig) if z_key == "elig_z" else (self.G_all, self.T_all)
+
+    def z(self, z_key: str) -> float:
+        return z_score(*self.counts(z_key), self.gamma)
 
     def summary(self) -> dict:
         g, Te, Ta = self.gamma, self.T_elig, self.T_all

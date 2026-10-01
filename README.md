@@ -8,7 +8,7 @@ MorphMark, and the evaluation audit.
 The package extends the watermark-distillation fingerprinting code of Gloaguen et al.
 ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints)) and keeps
 its license (`LICENSE_CODE`). The KGW green-list seeding follows the reference implementation of
-Kirchenbauer et al. (Apache 2.0; `src/robust_fp/watermarks/kgw/greenlist.py`).
+Kirchenbauer et al. (Apache 2.0; `src/robust_fp/watermarks/greenlist.py`).
 
 ## Installation
 
@@ -27,7 +27,8 @@ generator, so a fingerprint must be detected on the same kind of device it was e
 
 ```
 src/robust_fp/
-  watermarks/        the teachers: KGWWatermark (KGW, KGW-NT, KGW-TK, SWEET, MorphMark), NearTieWrapper
+  watermarks/        the teachers: GreenList, KGW with a TokenSelector (dense / near-tie / entropy / top-k),
+                     MorphMark, NearTieWrapper, and each teacher's eligibility rule for detection
   finetuning/        distillation data, losses and trainer
   detection.py       the pooled green-token statistic and per-method eligibility
   results/           readers for the result trees
@@ -125,6 +126,31 @@ python scripts/audit/score_official_entropy.py --dir results/audit/llama3.1-8b
 python scripts/utility/score_ppl.py --dir results/audit/llama3.1-8b
 python scripts/audit/report_audit.py --results results --models llama3.1-8b
 ```
+
+## Adding a watermark
+
+A teacher is a `Watermark` (`src/robust_fp/watermarks/base.py`): it returns watermarked logits
+through `watermark_logits_diff` and, when its detector scores only some positions, those positions
+through `eligibility`. The training loop, the detector, the query-budget re-scorer and the result
+readers depend on that interface only. Detection rows record the teacher's `name` (as `teacher`)
+and the statistic it is read with (`z_key`).
+
+- A new rule for *which green tokens* a KGW teacher biases is one `TokenSelector` subclass
+  (`selectors.py`): set `name`, implement `select(logits, green)`, and add `eligibility(logp)` plus
+  `restricts_positions = True` if the rule is position-dependent. `KGW(greenlist, delta, selector)`
+  takes it directly; `tests/test_watermarks.py` shows a minimal example.
+- A watermark with its own mechanism (as `MorphMark`) subclasses `Watermark`: it sets `name` and
+  `greenlist` (the shared `GreenList`), implements `watermark_logits_diff`, and overrides
+  `eligibility` and `restricts_positions` if its detector scores only some positions. If its
+  perturbation is not an additive logit bias, it also overrides `restricted_logits_diff`, which
+  says how to keep the perturbation inside a token subset.
+- The near-tie restriction composes with either through `NearTieWrapper`, which calls
+  `restricted_logits_diff` with the near-tie support set.
+
+To expose a new teacher in the YAML configuration, add its flag to `KGWWatermarkConfiguration` in
+`src/robust_fp/config.py` and extend the three places that read the flags: the validator (which
+flags exclude each other), `_selector`/`build` (which class to instantiate) and `name`. The class
+docstring lists the mapping from flags to classes.
 
 ## Tests
 

@@ -4,8 +4,8 @@
         --comps results/detection/llama3.1-8b/kgwnt_q50_d4/comps/clean_r0.jsonl --n 1000 \
         --cell kgwnt_q50_d4 --arm clean --run 0 --out results/detection/llama3.1-8b/kgwnt_q50_d4/detect.jsonl
 
-The detector is built from the configuration (green list, gate, thresholds) and the base model it
-names; the fingerprinted model is never loaded. See :mod:`robust_fp.detection` for the statistic.
+The detector is built from the configuration (green list and the teacher's eligibility rule) and the
+base model it names; the fingerprinted model is never loaded. See :mod:`robust_fp.detection` for the statistic.
 System instructions used at generation time are not part of the scored text: the verifier sees
 only the prompt and the response.
 """
@@ -19,7 +19,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 from robust_fp.config import MainConfiguration  # noqa: E402
-from robust_fp.detection import Detector, PooledCounts, uses_eligibility  # noqa: E402
+from robust_fp.detection import Detector, PooledCounts  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 ap.add_argument("--config", required=True, help="the cell's configuration")
@@ -49,18 +49,19 @@ if len(rows) < a.n:
 tok = AutoTokenizer.from_pretrained(cfg.base_model)
 watermark = wcfg.build(tok, device="cuda")
 base = None
-if uses_eligibility(watermark.gate_name):
+if watermark.restricts_positions:
     base = AutoModelForCausalLM.from_pretrained(cfg.base_model, torch_dtype=torch.bfloat16).to("cuda").eval()
-det = Detector.from_watermark(watermark, tok, base)
+det = Detector(watermark, tok, base)
 
 counts = PooledCounts(det.gamma)
 for r in rows:
     counts.add(det.response_flags(r["prompts"], r.get("completions") or ""))
 
 res = dict(label=f"{a.cell}_{a.arm}_r{a.run}", cell=a.cell, arm=a.arm, run=a.run, n=len(rows),
-           gate=det.gate, tau_gap=det.tau_gap, entropy_threshold=det.entropy_threshold, gamma=det.gamma,
+           teacher=watermark.name, z_key=det.z_key, tau_gap=wcfg.tau_gap if (wcfg.tie_restricted or wcfg.neartie_wrap) else None,
+           entropy_threshold=wcfg.entropy_threshold if wcfg.entropy_restricted else None, gamma=det.gamma,
            config=a.config, **counts.summary())
-print(f"[detect] {res['label']}: gate={res['gate']} elig_z={res['elig_z']} (elig_frac={res['elig_frac']}) "
+print(f"[detect] {res['label']}: teacher={res['teacher']} {res['z_key']}={res[res['z_key']]} (elig_frac={res['elig_frac']}) "
       f"all_z={res['all_z']} n_scored={res['n_scored']}")
 os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
 with open(a.out, "a") as fh:

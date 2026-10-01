@@ -22,14 +22,27 @@ import os
 import statistics
 from typing import Dict, Optional
 
-from robust_fp.detection import z_key
-
 #: Detection gate on the pooled z-score.
 GATE_Z = 4.0
 
 #: The eleven deployment conditions of the robustness protocol.
 ARMS = ["clean", "T04", "T10", "fp8", "int4", "sys0", "sys1", "sys2", "Wanda", "SparseGPT", "ft"]
 RUNS = 5
+
+
+def _z_key(row: dict) -> str:
+    """The statistic a detection row is read with.
+
+    ``detect.py`` and ``query_budget.py`` record it as ``z_key``. For a row written without it, the
+    rule is derived from the recorded ``teacher`` name: the near-tie teachers and SWEET restrict the
+    scored positions (``elig_z``), every other teacher is read over all positions (``all_z``).
+    """
+    if row.get("z_key") in ("elig_z", "all_z"):
+        return row["z_key"]
+    if "teacher" not in row:
+        raise KeyError(f"detection row {row.get('label', row.get('cell'))!r} records neither z_key nor teacher")
+    name = row["teacher"]
+    return "elig_z" if ("neartie" in name or "sweet" in name) else "all_z"
 
 
 def detect_path(results: str, model: str, cell: str) -> str:
@@ -63,7 +76,7 @@ def cell_arms(results: str, model: str, cell: str, arms=None, runs: int = RUNS) 
             r = rec.get((arm, run))
             if r is None:
                 return None
-            z = r.get(z_key(r["gate"]))
+            z = r.get(_z_key(r))
             if not isinstance(z, (int, float)):
                 return None
             zs.append(z)

@@ -2,7 +2,12 @@
 # Licensed under the Responsible AI SOURCE CODE License, Version 1.1
 # (see LICENSE_CODE).
 
+"""The teacher interface shared by every watermark."""
+from typing import Optional
+
 import torch
+
+from .greenlist import GreenList
 
 #: Vocabularies at least this large are handled in float32 in the distillation losses.
 LARGE_VOCAB = 200_000
@@ -11,24 +16,55 @@ LARGE_VOCAB = 200_000
 class Watermark:
     """A watermark used as a distillation teacher.
 
-    A watermark maps the base model's next-token logits to watermarked logits. The student is
-    distilled toward the watermarked distribution with a forward KL divergence, computed by
-    :meth:`distillation_loss`.
+    A teacher maps the base model's next-token logits to watermarked logits; the student is
+    distilled toward the watermarked distribution with the forward KL of :meth:`distillation_loss`.
+
+    A teacher also defines its own detector. Detection counts green tokens over the positions the
+    teacher could have influenced: :meth:`eligibility` returns those positions from the base model's
+    log-probabilities, or ``None`` when every position counts. Both the eligibility rule and the
+    green list are independent of the response text, so the null green-token rate stays ``gamma``.
+
+    Subclasses implement :meth:`watermark_logits_diff`, set :attr:`name` and :attr:`greenlist`,
+    override :meth:`eligibility` and :attr:`restricts_positions` if they restrict the scored
+    positions, and override :meth:`watermark_logits` and :meth:`restricted_logits_diff` if their
+    perturbation is not an additive logit bias.
     """
 
-    #: Short name of the watermark, recorded next to every detection result.
-    gate_name: str = "kgw"
+    #: Short identifier recorded with every detection result.
+    name: str = "watermark"
+    #: The green list the teacher and its detector share.
+    greenlist: GreenList
 
     def watermark_logits(self, input_ids: torch.LongTensor, logits: torch.FloatTensor) -> torch.FloatTensor:
-        """Return the watermarked logits for ``logits`` of shape ``(batch, seq_len, vocab)``.
-
-        The input tensor is not modified.
-        """
-        raise NotImplementedError
+        """Watermarked logits for ``logits`` of shape ``(batch, seq_len, vocab)``; the input is not modified."""
+        return logits + self.watermark_logits_diff(input_ids, logits)
 
     def watermark_logits_diff(self, input_ids: torch.LongTensor, logits: torch.FloatTensor) -> torch.FloatTensor:
-        """Return ``watermark_logits(input_ids, logits) - logits``, without modifying ``logits``."""
+        """``watermark_logits(input_ids, logits) - logits``, without modifying ``logits``."""
         raise NotImplementedError
+
+    def restricted_logits_diff(self, input_ids: torch.LongTensor, logits: torch.FloatTensor,
+                               support: torch.BoolTensor) -> torch.FloatTensor:
+        """:meth:`watermark_logits_diff` with the perturbation kept only inside ``support`` ``(..., V)``.
+
+        The default zeroes the bias outside the support, which is exact for an additive teacher;
+        a teacher whose perturbation is not ``logits + diff`` overrides it.
+        """
+        diff = self.watermark_logits_diff(input_ids, logits)
+        support = support.to(diff.device)[..., :diff.shape[-1]]
+        # torch.where rather than a product: a -inf base logit (a token masked at decode time) has
+        # an infinite diff, and inf * 0 is NaN.
+        return torch.where(support, diff, torch.zeros_like(diff))
+
+    def eligibility(self, logp: torch.FloatTensor) -> Optional[torch.BoolTensor]:
+        """Positions the detector scores, from the base model's log-probabilities ``logp`` of
+        shape ``(positions, vocab)``; ``None`` means every position."""
+        return None
+
+    @property
+    def restricts_positions(self) -> bool:
+        """Whether detection is restricted to eligible positions (``elig_z``) rather than all (``all_z``)."""
+        return False
 
     def distillation_loss(
         self,

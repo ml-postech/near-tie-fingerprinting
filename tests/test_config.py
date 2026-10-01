@@ -17,9 +17,9 @@ def test_every_shipped_config_parses_and_names_its_cell():
         cell = os.path.basename(f)[:-5]
         assert cfg.finetuning.custom_name == cell
         fam, _ = family_of(cell)
-        gate = cfg.watermark.config.gate_name
+        teacher = cfg.watermark.config.name
         assert {"kgw": "kgw", "kgwnt": "neartie", "sweet": "sweet", "kgwtk": "topk", "morphmark": "morphmark",
-                "sweetnt": "sweet+neartie", "morphmarknt": "morphmark+neartie"}[fam] == gate
+                "sweetnt": "sweet+neartie", "morphmarknt": "morphmark+neartie"}[fam] == teacher
 
 
 def test_designed_grid_covers_the_frontier_cells():
@@ -33,3 +33,36 @@ def test_unknown_keys_are_rejected(tmp_path):
     p.write_text("base_model: x\nwatermark:\n  type: kgw\n  config: {gamma: 0.25, not_an_option: true}\n")
     with pytest.raises(Exception):
         MainConfiguration.from_yaml(str(p))
+
+
+def test_flags_map_to_teacher_classes():
+    """The YAML flags of KGWWatermarkConfiguration build the classes its docstring names."""
+    from robust_fp.config import KGWWatermarkConfiguration
+    from robust_fp.watermarks import (KGW, DenseSelector, EntropySelector, GreenList, MorphMark, NearTieSelector,
+                                      NearTieWrapper, TopKSelector)
+
+    class Tok:
+        eos_token_id = bos_token_id = pad_token_id = unk_token_id = None
+
+        def get_vocab(self):
+            return {f"t{i}": i for i in range(64)}
+
+    greenlist = GreenList(Tok().get_vocab(), gamma=0.25, device="cpu")
+    build = lambda **kw: KGWWatermarkConfiguration(**kw).build(Tok(), device="cpu", greenlist=greenlist)
+    assert isinstance(build().selector, DenseSelector)
+    assert isinstance(build(tie_restricted=True, tau_gap=1.0).selector, NearTieSelector)
+    assert isinstance(build(entropy_restricted=True, entropy_threshold=0.5).selector, EntropySelector)
+    assert isinstance(build(topk_restricted=5).selector, TopKSelector)
+    mm = build(morphmark=True, morphmark_config={"variant": "log", "k_log": 1.0})
+    assert isinstance(mm, MorphMark) and mm.variant == "log" and mm.k_log == 1.0
+    wrapped = build(entropy_restricted=True, neartie_wrap=True, tau_gap=1.0)
+    assert isinstance(wrapped, NearTieWrapper) and isinstance(wrapped.base, KGW)
+    for kw in ({"tie_restricted": True}, {"tie_restricted": True, "entropy_restricted": True, "tau_gap": 1.0},
+               {"neartie_wrap": True, "tau_gap": 1.0}, {"neartie_wrap": True, "tie_restricted": True, "tau_gap": 1.0},
+               {"morphmark_config": {"variant": "exp"}}, {"morphmark": True, "morphmark_config": {"variant": "x"}},
+               {"morphmark": True, "morphmark_config": {"k_exp": 1.0, "unknown": 1}}, {"topk_restricted": -1}):
+        with pytest.raises(Exception):
+            KGWWatermarkConfiguration(**kw)
+    for kw, name in (({}, "kgw"), ({"tie_restricted": True, "tau_gap": 1.0}, "neartie"), ({"morphmark": True}, "morphmark"),
+                     ({"morphmark": True, "neartie_wrap": True, "tau_gap": 1.0}, "morphmark+neartie")):
+        assert KGWWatermarkConfiguration(**kw).name == name

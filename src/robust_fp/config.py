@@ -8,7 +8,7 @@ A configuration file has three sections::
 
     base_model: meta-llama/Llama-3.1-8B-Instruct
     watermark:
-      type: kgw
+      type: kgw                     # always kgw: every teacher is keyed by a KGW green list; the flags pick the teacher
       config: {gamma: 0.25, delta: 4, tie_restricted: true, tau_gap: 1.5}
     finetuning:
       training_args: {...}          # transformers.TrainingArguments
@@ -28,11 +28,46 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from robust_fp.finetuning.datasets import DatasetType
-from robust_fp.watermarks import KGWWatermark, NearTieWrapper, Watermark
+from robust_fp.watermarks import (KGW, DenseSelector, EntropySelector, GreenList, MorphMark, NearTieSelector,
+                                  NearTieWrapper, TokenSelector, TopKSelector, Watermark)
+from robust_fp.watermarks.morphmark import VARIANTS as MORPHMARK_VARIANTS
+
+
+class MorphMarkConfiguration(BaseModel):
+    """Parameters of :class:`~robust_fp.watermarks.MorphMark` (``morphmark_config`` in YAML)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    variant: str = "exp"
+    k_exp: float = 1.30
+    k_linear: float = 1.55
+    k_log: float = 2.15
+    p_0: float = 0.15
+
+    @model_validator(mode="after")
+    def _check(self):
+        if self.variant not in MORPHMARK_VARIANTS:
+            raise ValueError(f"variant must be one of {MORPHMARK_VARIANTS}, got {self.variant!r}")
+        return self
 
 
 class KGWWatermarkConfiguration(BaseModel):
-    """Parameters of the KGW-family teachers; see :class:`robust_fp.watermarks.KGWWatermark`."""
+    """Parameters of the teachers in :mod:`robust_fp.watermarks`, as flat YAML flags.
+
+    The flags select the teacher class::
+
+        (none)                            KGW(greenlist, delta, DenseSelector())
+        tie_restricted + tau_gap          KGW(greenlist, delta, NearTieSelector(tau_gap))       KGW-NT
+        entropy_restricted + threshold    KGW(greenlist, delta, EntropySelector(threshold))     SWEET
+        topk_restricted = k               KGW(greenlist, delta, TopKSelector(k))                KGW-TK
+        morphmark + morphmark_config      MorphMark(greenlist, **morphmark_config)
+        neartie_wrap + tau_gap            NearTieWrapper(<SWEET or MorphMark teacher>, tau_gap)
+
+    At most one of ``tie_restricted``, ``entropy_restricted``, ``topk_restricted`` and ``morphmark``
+    may be set; with none set the teacher is plain KGW. ``neartie_wrap`` composes the near-tie
+    restriction with a SWEET or MorphMark teacher (KGW-NT itself is ``tie_restricted``). ``delta`` is
+    the logit bias of the KGW-family teachers and is not used by MorphMark.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -49,55 +84,61 @@ class KGWWatermarkConfiguration(BaseModel):
     topk_restricted: int = 0
     # MorphMark: probability redistribution instead of a logit bias.
     morphmark: bool = False
-    morphmark_config: Optional[Dict[str, Any]] = None
+    morphmark_config: Optional[MorphMarkConfiguration] = None
     # Near-tie wrapper: restrict the perturbation of a SWEET or MorphMark teacher to the near-tie
     # support set of width tau_gap.
     neartie_wrap: bool = False
 
     @model_validator(mode="after")
     def _check(self):
+        selected = [n for n, on in (("tie_restricted", self.tie_restricted), ("entropy_restricted", self.entropy_restricted),
+                                    ("topk_restricted", bool(self.topk_restricted)), ("morphmark", self.morphmark)) if on]
+        if len(selected) > 1:
+            raise ValueError(f"at most one of tie_restricted / entropy_restricted / topk_restricted / morphmark "
+                             f"may be set; got {selected}")
+        if self.topk_restricted < 0:
+            raise ValueError("topk_restricted must be a positive k, or 0 for no top-k restriction")
         if self.neartie_wrap and self.tie_restricted:
             raise ValueError("neartie_wrap composes with SWEET or MorphMark; KGW-NT is tie_restricted alone")
         if (self.tie_restricted or self.neartie_wrap) and self.tau_gap is None:
             raise ValueError("tau_gap is required by tie_restricted and by neartie_wrap")
         if self.neartie_wrap and not (self.entropy_restricted or self.morphmark):
             raise ValueError("neartie_wrap requires a SWEET (entropy_restricted) or MorphMark base")
+        if self.morphmark_config is not None and not self.morphmark:
+            raise ValueError("morphmark_config is only read when morphmark is set")
         return self
 
-    def build(self, tokenizer, device: str = "cuda") -> Watermark:
-        """Instantiate the teacher, building its green-list mask on ``device``."""
-        wm = KGWWatermark(
-            vocab=tokenizer.get_vocab(),
-            gamma=self.gamma,
-            delta=self.delta,
-            seeding_scheme=self.seeding_scheme,
-            tokenizer=tokenizer,
-            tie_restricted=self.tie_restricted,
-            tau_gap=self.tau_gap,
-            entropy_restricted=self.entropy_restricted,
-            entropy_threshold=self.entropy_threshold,
-            topk_restricted=self.topk_restricted,
-            morphmark=self.morphmark,
-            morphmark_config=self.morphmark_config,
-            device=device,
-        )
+    def _selector(self) -> TokenSelector:
+        """The token selector of a KGW-family teacher (not for ``morphmark``)."""
+        if self.tie_restricted:
+            return NearTieSelector(self.tau_gap)
+        if self.entropy_restricted:
+            return EntropySelector(self.entropy_threshold)
+        if self.topk_restricted:
+            return TopKSelector(self.topk_restricted)
+        return DenseSelector()
+
+    def build_greenlist(self, tokenizer, device: str = "cuda") -> GreenList:
+        """The green list this configuration uses (a function of gamma and the seeding scheme only)."""
+        return GreenList(tokenizer.get_vocab(), gamma=self.gamma, seeding_scheme=self.seeding_scheme,
+                         tokenizer=tokenizer, device=device)
+
+    def build(self, tokenizer, device: str = "cuda", greenlist: Optional[GreenList] = None) -> Watermark:
+        """Instantiate the teacher. Pass ``greenlist`` to share one mask between teachers."""
+        if greenlist is None:
+            greenlist = self.build_greenlist(tokenizer, device)
+        if self.morphmark:
+            wm = MorphMark(greenlist, **(self.morphmark_config or MorphMarkConfiguration()).model_dump())
+        else:
+            wm = KGW(greenlist, self.delta, self._selector())
         if self.neartie_wrap:
             wm = NearTieWrapper(wm, self.tau_gap)
         return wm
 
     @property
-    def gate_name(self) -> str:
-        """The name the built teacher reports, without building it."""
-        if self.morphmark:
-            base = "morphmark"
-        elif self.tie_restricted:
-            base = "neartie"
-        elif self.entropy_restricted:
-            base = "sweet"
-        elif self.topk_restricted:
-            base = "topk"
-        else:
-            base = "kgw"
+    def name(self) -> str:
+        """The ``name`` the built teacher reports, without building it."""
+        base = MorphMark.name if self.morphmark else self._selector().name
         return base + ("+neartie" if self.neartie_wrap else "")
 
 
@@ -110,7 +151,8 @@ class WatermarkConfiguration(BaseModel):
     @model_validator(mode="after")
     def _check(self):
         if self.type != "kgw":
-            raise ValueError(f"unsupported watermark type {self.type!r}; only 'kgw' is implemented")
+            raise ValueError(f"unsupported watermark type {self.type!r}; every teacher here is keyed by a KGW green "
+                             f"list and selected by the flags of `config`, so `type` is always 'kgw'")
         return self
 
     def build(self, tokenizer, device: str = "cuda") -> Watermark:

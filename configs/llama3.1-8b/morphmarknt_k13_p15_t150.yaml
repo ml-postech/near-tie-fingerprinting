@@ -8,7 +8,7 @@ watermark:
     tau_gap: 1.5
     morphmark: true
     morphmark_config:
-      type: exp
+      variant: exp
       k_exp: 1.3
       p_0: 0.15
     neartie_wrap: true

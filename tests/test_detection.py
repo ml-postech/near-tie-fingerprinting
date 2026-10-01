@@ -1,8 +1,11 @@
 """The pooled statistic and the query-budget reduction (CPU)."""
 import math
 
-from robust_fp.detection import PooledCounts, uses_eligibility, z_key, z_score
-from robust_fp.results.robustness import qmin, worst_z_at
+import pytest
+
+from robust_fp.detection import Detector, PooledCounts, z_score
+from robust_fp.results.robustness import _z_key, qmin, worst_z_at
+from robust_fp.watermarks import KGW, GreenList, NearTieSelector
 
 
 def test_z_score_null_and_full():
@@ -11,10 +14,22 @@ def test_z_score_null_and_full():
     assert math.isnan(z_score(0, 0, 0.25))
 
 
-def test_detector_keys():
-    assert z_key("kgw") == "all_z" and z_key("morphmark") == "all_z" and z_key("topk") == "all_z"
-    assert z_key("neartie") == "elig_z" and z_key("sweet") == "elig_z" and z_key("sweet+neartie") == "elig_z"
-    assert uses_eligibility("morphmark+neartie")
+def test_row_z_key_recorded_or_derived():
+    assert _z_key({"teacher": "kgw", "z_key": "all_z"}) == "all_z"
+    assert _z_key({"teacher": "neartie"}) == "elig_z" and _z_key({"teacher": "sweet+neartie"}) == "elig_z"
+    assert _z_key({"teacher": "morphmark"}) == "all_z" and _z_key({"teacher": "topk"}) == "all_z"
+    assert _z_key({"teacher": "morphmark+neartie"}) == "elig_z"
+
+
+def test_detector_z_key_follows_the_teacher():
+    greenlist = GreenList({f"t{i}": i for i in range(64)}, gamma=0.25, device="cpu")
+
+    class Tok:
+        pass
+    assert Detector(KGW(greenlist, 2.0), Tok()).z_key == "all_z"
+    assert Detector(KGW(greenlist, 2.0, NearTieSelector(1.0)), Tok(), base_model=object()).z_key == "elig_z"
+    with pytest.raises(ValueError):                 # a position-restricting teacher needs the base model
+        Detector(KGW(greenlist, 2.0, NearTieSelector(1.0)), Tok())
 
 
 def test_pooled_counts_dedup_across_responses():
@@ -26,6 +41,7 @@ def test_pooled_counts_dedup_across_responses():
     assert s["n_scored"] == 2
     assert s["all_n"] == 3 and s["all_green"] == round(2 / 3, 4)
     assert c.T_elig == 1 and c.G_elig == 1 and s["elig_frac"] == round(1 / 3, 3)
+    assert math.isclose(c.z("all_z"), z_score(2, 3, 0.25)) and math.isclose(c.z("elig_z"), z_score(1, 1, 0.25))
 
 
 def test_qmin_is_the_monotone_suffix_crossing():

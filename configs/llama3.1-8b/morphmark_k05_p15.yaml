@@ -7,7 +7,7 @@ watermark:
     seeding_scheme: simple_1
     morphmark: true
     morphmark_config:
-      type: exp
+      variant: exp
       k_exp: 0.5
       p_0: 0.15
 finetuning:
