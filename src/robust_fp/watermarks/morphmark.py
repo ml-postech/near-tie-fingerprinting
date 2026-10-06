@@ -1,11 +1,26 @@
 # Copyright (c) 2026 Jeongyeon Hwang, Anshul Nasery, Sewoong Oh and Jungseul Ok
 # Licensed under the Responsible AI SOURCE CODE License, Version 1.1
 # (see LICENSE_CODE).
+#
+# The redistribution rule follows the MorphMark implementation of MarkLLM,
+# Copyright 2024 THU-BPM MarkLLM, https://github.com/THU-BPM/MarkLLM
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """MorphMark (Wang et al., ACL 2025) as a distillation teacher.
 
-Reproduces the ``_bias_greenlist_logits`` rule of the MarkLLM reference implementation, vectorised
-over a batch of positions. Given the green mask ``g`` of a position and ``P_G``, the base model's
+Reproduces the ``_bias_greenlist_logits`` rule of the MarkLLM reference implementation
+(THU-BPM/MarkLLM, Apache 2.0), vectorised over a batch of positions. Given the green mask ``g`` of a position and ``P_G``, the base model's
 probability mass on green tokens:
 
     r     = 0                        if P_G <  p_0
