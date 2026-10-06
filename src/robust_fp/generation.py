@@ -10,9 +10,15 @@ import sys
 QUANTIZATION = {"none": None, "fp8": "fp8", "int4": "bitsandbytes"}
 
 
-def conversations(prompts, system=None, system_merge=False):
-    """Chat conversations for ``prompts``. A system instruction is a system turn, or is prepended to
-    the user turn when the model's chat template has no system role (``system_merge``)."""
+def conversations(prompts, system=None, system_merge=False, prefix=None):
+    """Chat conversations for ``prompts``.
+
+    ``prefix`` is a directive written in front of every prompt (``"<prefix> <prompt>"``). A system
+    instruction is a system turn, or is prepended to the user turn when the model's chat template
+    has no system role (``system_merge``).
+    """
+    if prefix:
+        prompts = [f"{prefix} {p}" for p in prompts]
     if system and not system_merge:
         return [[{"role": "system", "content": system}, {"role": "user", "content": p}] for p in prompts]
     if system and system_merge:

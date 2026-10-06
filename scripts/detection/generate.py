@@ -11,6 +11,7 @@ new tokens and at least 25, repetition penalty 1.1.
         --n 1000 --runs 5 --temperature 0.7 --out_prefix results/detection/llama3.1-8b/kgwnt_q50_d4/comps/clean
     python scripts/detection/generate.py ... --quant fp8
     python scripts/detection/generate.py ... --system "You are a helpful assistant." [--system_merge]
+    python scripts/detection/generate.py ... --prompt_prefix "Réponds uniquement en français."
 """
 import argparse
 import json
@@ -32,6 +33,8 @@ ap.add_argument("--top_k", type=int, default=50, help="sampling support size; 0 
 ap.add_argument("--system", default=None, help="system instruction")
 ap.add_argument("--system_merge", action="store_true",
                 help="prepend the system instruction to the user turn (models without a system role)")
+ap.add_argument("--prompt_prefix", default=None,
+                help="directive written in front of every prompt, e.g. 'Réponds uniquement en français.'")
 ap.add_argument("--max_model_len", type=int, default=None)
 ap.add_argument("--gpu_memory_utilization", type=float, default=None)
 ap.add_argument("--dtype", default=None)
@@ -52,7 +55,8 @@ from vllm import SamplingParams  # noqa: E402
 llm = build_engine(a.model, a.quant, a.max_model_len, a.gpu_memory_utilization, a.dtype)
 params = SamplingParams(temperature=a.temperature, top_p=0.9, top_k=a.top_k, max_tokens=200,
                         repetition_penalty=1.1, min_tokens=25, n=a.runs)
-outs = llm.chat(conversations(prompts, a.system, a.system_merge), params)
+convs = conversations(prompts, a.system, a.system_merge, a.prompt_prefix)
+outs = llm.chat(convs, params)
 
 short = [i for i, o in enumerate(outs) if len(o.outputs) < a.runs]
 if short:
@@ -62,5 +66,6 @@ os.makedirs(os.path.dirname(a.out_prefix) or ".", exist_ok=True)
 for j, path in enumerate(paths):
     with open(path, "w") as fh:
         for p, o in zip(prompts, outs):
-            fh.write(json.dumps({"prompts": p, "completions": o.outputs[j].text.strip()}, ensure_ascii=False) + "\n")
+            prompt = f"{a.prompt_prefix} {p}" if a.prompt_prefix else p      # the user prompt as sent, for the detector
+            fh.write(json.dumps({"prompts": prompt, "completions": o.outputs[j].text.strip()}, ensure_ascii=False) + "\n")
     print(f"[generate] run {j}: {len(prompts)} responses -> {path}")

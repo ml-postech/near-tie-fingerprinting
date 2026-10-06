@@ -16,7 +16,10 @@
 #   PROMPTS     JSON list of detection prompts         RESULTS     results root (default: results)
 # Optional:
 #   N (1000) responses per run   RUNS (5)   TOP_K (50)   SYSTEM_MERGE=1 for models without a system role
-#   SYS_PROMPTS  prompt file for the system-instruction arms (default: $PROMPTS)
+#   SYS_PREFIX   directive written in front of every prompt of the system-instruction arms (default: none).
+#                gemma-2 has no system role, so the English instruction merges into the user turn and
+#                the model then mostly answers in English; "Réponds uniquement en français." keeps
+#                those arms in French, so that they measure the fingerprint and not language drift.
 #   CALIBRATION  pruning calibration set: ultrachat (default) or dolly
 #   FT_CORPUS    fine-tuning corpus (default: data/wildchat_fr.json.gz)
 #   TMP          scratch directory for the pruned / fine-tuned checkpoints (default: $RESULTS/tmp/$MODEL/$CELL)
@@ -26,7 +29,7 @@
 set -u
 : "${CELL:?}" "${MODEL:?}" "${CHECKPOINT:?}" "${CONFIG:?}" "${PROMPTS:?}"
 RESULTS=${RESULTS:-results}; N=${N:-1000}; RUNS=${RUNS:-5}; TOP_K=${TOP_K:-50}
-SYS_PROMPTS=${SYS_PROMPTS:-$PROMPTS}; CALIBRATION=${CALIBRATION:-ultrachat}
+SYS_PREFIX=${SYS_PREFIX:-}; CALIBRATION=${CALIBRATION:-ultrachat}
 FT_CORPUS=${FT_CORPUS:-data/wildchat_fr.json.gz}
 HERE=$(cd "$(dirname "$0")" && pwd)
 D=$RESULTS/detection/$MODEL/$CELL; C=$D/comps; O=$D/detect.jsonl
@@ -54,8 +57,9 @@ gen_sys(){  # gen_sys <arm> <instruction>
   local arm=$1 sys=$2
   local last=$C/${arm}_r$((RUNS-1)).jsonl
   if [ -f "$last" ] && [ "$(wc -l <"$last")" -ge "$N" ]; then echo "skip generate $arm"; return 0; fi
-  python "$HERE/generate.py" --model "$CHECKPOINT" --prompts "$SYS_PROMPTS" --n "$N" --runs "$RUNS" --top_k "$TOP_K" \
-    --out_prefix "$C/$arm" --temperature 0.7 --system "$sys" $SYSFLAG </dev/null || fail "generate $arm"
+  python "$HERE/generate.py" --model "$CHECKPOINT" --prompts "$PROMPTS" --n "$N" --runs "$RUNS" --top_k "$TOP_K" \
+    --out_prefix "$C/$arm" --temperature 0.7 --system "$sys" $SYSFLAG ${SYS_PREFIX:+--prompt_prefix "$SYS_PREFIX"} \
+    </dev/null || fail "generate $arm"
 }
 saved(){ [ -f "$1/model.safetensors.index.json" ] || [ -f "$1/model.safetensors" ]; }
 

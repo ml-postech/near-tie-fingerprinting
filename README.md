@@ -73,8 +73,11 @@ CHECKPOINT=models/Llama-3.1-8B-Instruct_kgwnt_q50_d4 PROMPTS=data/french_alpaca_
 RESULTS=results scripts/detection/run_cell.sh
 ```
 
-gemma-2 has no system role: run it with `SYSTEM_MERGE=1 CALIBRATION=dolly
-SYS_PROMPTS=data/french_alpaca_explicitFR_20000.json`. The unwatermarked base model is a cell too
+gemma-2 has no system role: run it with `SYSTEM_MERGE=1 CALIBRATION=dolly SYS_PREFIX="Réponds
+uniquement en français."`. With the system instruction merged into the user turn gemma-2 otherwise
+answers mostly in English, and a French green list cannot show in English text; the directive keeps
+the three system-instruction arms a test of the fingerprint rather than of language drift. The
+unwatermarked base model is a cell too
 (its z is the null distribution); score it with the config of any cell of the same model.
 
 Responses are sampled at top_p 0.9 and top_k 50, the support the utility corpus is generated with.

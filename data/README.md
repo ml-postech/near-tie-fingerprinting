@@ -3,7 +3,6 @@
 | file | rows | used by |
 |---|---:|---|
 | `french_alpaca_20000.json` | 20,000 | detection prompts: `scripts/detection/run_cell.sh` (`PROMPTS`) |
-| `french_alpaca_explicitFR_20000.json` | 20,000 | the same prompts with an explicit "answer in French" directive; the system-instruction arms of gemma-2 (`SYS_PROMPTS`) |
 | `french_alpaca_1000.json` | 1,000 | the evaluation prompts of the audit (`scripts/audit`) |
 | `writingprompts_fr_500.json` | 500 | utility prompts: `scripts/utility/generate.py` |
 | `wildchat_fr.json.gz` | 15,990 | fine-tuning corpus of the `ft` arm: `scripts/detection/finetune_attack.py` |
