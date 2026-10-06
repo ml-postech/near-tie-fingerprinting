@@ -20,8 +20,10 @@
 #   PROMPTS     JSON list of detection prompts         RESULTS     results root (default: results)
 # Optional:
 #   N (1000) responses per run   RUNS (5)   TOP_K (50)   SYSTEM_MERGE=1 for models without a system role
-#   SYS_PREFIX   directive written in front of every prompt of the system-instruction arms (default: none;
-#                "Réponds uniquement en français." for gemma-2, see README)
+#   SYS_PREFIX   directive written in front of every prompt of the system-instruction arms (default: none).
+#                gemma-2 has no system role: the English instruction merges into the user turn and the
+#                model then answers mostly in English, where a French green list cannot show, so it is
+#                run with SYS_PREFIX="Réponds uniquement en français."
 #   CALIBRATION  pruning calibration set: ultrachat (default) or dolly
 #   FT_CORPUS    fine-tuning corpus (default: data/wildchat_fr.json.gz)
 #   TMP          scratch directory for the pruned / fine-tuned checkpoints (default: $RESULTS/tmp/$MODEL/$CELL)
