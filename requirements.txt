@@ -16,5 +16,3 @@ llmcompressor>=0.7
 trl>=0.20
 # LLM judge
 openai>=1.50
-# figures
-matplotlib

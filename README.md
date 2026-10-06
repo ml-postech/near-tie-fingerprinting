@@ -59,7 +59,13 @@ OPENAI_API_KEY=... python scripts/utility/judge.py --files results/utility/llama
 scripts/benchmark/frenchbench.sh models/Llama-3.1-8B-Instruct_kgwnt_q50_d4 results/frenchbench/llama3.1-8b/kgwnt_q50_d4
 ```
 
-`scripts/figures/` renders the frontier, query-budget and near-tie-combination figures from the result tree, and `scripts/audit/` reproduces the utility re-evaluation of Table 1; each script documents its usage.
+**Summarise**
+
+```bash
+python scripts/report_results.py --results results --models llama3.1-8b
+```
+
+prints, per cell, the worst-case z-score and its binding condition, the PPL ratio, the LLM-judge drop and N_min. `scripts/audit/` reproduces the utility re-evaluation of Table 1.
 
 ## 🧩 Using the watermarks in your own code
 

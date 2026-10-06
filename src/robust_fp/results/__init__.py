@@ -15,9 +15,8 @@ from .robustness import (ARMS, GATE_Z, cell_arms, load_qmin, qmin, query_budget_
                          worst_z_at)
 from .cells import DESIGNED_GRID, FAMILIES, MORPHMARK_EXTRA, family_of, is_designed
 from .judge import JudgeRun
-from .models import MODELS, model_title
 from .utility import UtilityTable
 
 __all__ = ["ARMS", "GATE_Z", "cell_arms", "load_qmin", "qmin", "query_budget_curves", "worst_z",
            "worst_z_at", "DESIGNED_GRID", "MORPHMARK_EXTRA", "FAMILIES", "family_of", "is_designed", "JudgeRun",
-           "MODELS", "model_title", "UtilityTable"]
+           "UtilityTable"]
