@@ -1,51 +1,136 @@
-# Fingerprinting open-weight LLMs with near-tie watermark distillation
+Language Model Fingerprinting Requires Rethinking Watermark Teachers
+====================================================================
 
-Code for [*Language Model Fingerprinting Requires Rethinking Watermark Teachers*](https://arxiv.org/abs/2610.04169)
-(Hwang, Nasery, Oh and Ok, 2026): the method (KGW-NT: KGW watermark distillation restricted to the
-near-tie support set), the baselines it is compared with (KGW, KGW-TK, SWEET, MorphMark), and the
-main experiments of the paper: the detection/utility frontier, the query-budget curves, the near-tie
-restriction applied to SWEET and MorphMark, and the evaluation audit.
+### [Paper](https://arxiv.org/abs/2610.04169)
 
-The package extends the watermark-distillation fingerprinting code of Gloaguen et al.
+Official implementation of the fingerprinting method, baselines and evaluation protocol of
+
+*"Language Model Fingerprinting Requires Rethinking Watermark Teachers"* by Jeongyeon Hwang,
+Anshul Nasery, Sewoong Oh and Jungseul Ok.
+
+LLM fingerprinting via watermark distillation trains a model (the *student*) toward the output
+distribution of a watermarked version of itself (the *teacher*), so that the owner can later
+recognise the model behind a black-box API from the green-token statistics of its responses. The
+paper shows that text watermarks designed to be detectable from a single output are overly strong
+teachers for this purpose, and proposes **near-tie restriction**: the watermark bias is applied
+only to green tokens whose logit lies within a window `tau_gap` of the base model's top prediction,
+and the detector scores only the positions where the base model was itself undecided. The resulting
+teacher, **KGW-NT**, improves the detection/quality trade-off under deployment changes (sampling
+temperature, system prompts, quantisation, pruning, fine-tuning), preserves more text quality at
+every query budget, and composes with existing watermarks (SWEET, MorphMark).
+
+The code extends the watermark-distillation fingerprinting framework of Gloaguen et al.
 ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints)) and keeps
-its license (`LICENSE_CODE`). The KGW green-list seeding follows the reference implementation of
-Kirchenbauer et al. (Apache 2.0; `src/robust_fp/watermarks/greenlist.py`).
+its license (`LICENSE_CODE`). The KGW green-list construction follows the reference implementation
+of Kirchenbauer et al. ([jwkirchenbauer/lm-watermarking](https://github.com/jwkirchenbauer/lm-watermarking), Apache 2.0).
 
-## Installation
+Contents
+--------
+
+- [Installation](#installation)
+- [Repository contents](#repository-contents)
+- [Using the watermarks in your own code](#using-the-watermarks-in-your-own-code)
+- [Reproducing the paper](#reproducing-the-paper)
+  1. [Embedding a fingerprint](#1-embedding-a-fingerprint)
+  2. [Detection under deployment transformations](#2-detection-under-deployment-transformations)
+  3. [Text quality](#3-text-quality)
+  4. [Figures](#4-figures)
+  5. [Evaluation audit](#5-evaluation-audit)
+- [Adding a watermark](#adding-a-watermark)
+- [Citation](#citation)
+
+Installation
+------------
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
-# FrenchBench (optional): pip install lm-eval
+pip install lm-eval        # optional, FrenchBench only
+pytest tests               # CPU
 ```
 
-A GPU is required: the green-list mask of a 128k-token vocabulary is a 15 GiB boolean tensor
-(61 GiB for gemma-2's 256k vocabulary, which needs an 80 GiB card), and it is drawn by a CUDA
-generator, so a fingerprint must be detected on the same kind of device it was embedded with.
+A GPU is required for embedding and detection. The green-list mask of a 128k-token vocabulary is a
+15 GiB boolean tensor (61 GiB for gemma-2's 256k vocabulary, which needs an 80 GiB card), and it is
+drawn by a CUDA generator, so a fingerprint must be detected on the same kind of device it was
+embedded with.
 
-## Layout
+Repository contents
+-------------------
 
+**`src/robust_fp/watermarks/`: the teachers.** A teacher is a `Watermark`: it maps the base model's
+next-token logits to watermarked logits and tells the detector which positions to score.
+
+| class | role |
+|---|---|
+| `GreenList` | the keyed green/red partition of the vocabulary (`gamma`, `seeding_scheme`), shared by teachers and detectors |
+| `KGW` | green-token logit bias of strength `delta`; *which* green tokens are biased is a `TokenSelector` |
+| `DenseSelector`, `NearTieSelector`, `EntropySelector`, `TopKSelector` | KGW, **KGW-NT**, SWEET, KGW-TK |
+| `MorphMark` | probability-mass redistribution toward the green list (Wang et al., 2025) |
+| `NearTieWrapper` | restricts any teacher's perturbation to the near-tie support set: SWEET+NT, MorphMark+NT |
+
+**`src/robust_fp/detection.py`: the detector.** Responses are pooled; every distinct `(k+1)`-gram is
+counted once, and `z = (G - gamma T) / sqrt(gamma (1 - gamma) T)` over the positions the teacher's
+eligibility rule selects (`elig_z`) or over all positions (`all_z`). Eligibility is decided by the
+unwatermarked base model, never by the fingerprinted one.
+
+**`src/robust_fp/finetuning/`, `train.py`, `config.py`.** The distillation loop (forward KL toward the
+teacher on a French corpus, anti-watermark regularisation on general corpora) and the typed YAML
+configuration. **`src/robust_fp/results/`** reads the result trees for the figures.
+
+**`configs/<model>/`.** One YAML per fingerprinted model, a *cell*, named `<family>_<setting>`
+(`kgwnt_q50_d4`: KGW-NT with `tau_gap` at the 50th percentile of the base model's logit gap,
+`delta = 4`); `src/robust_fp/results/cells.py` lists the names and the grid of the paper. The four
+base models are Llama-3.2-3B-Instruct, Qwen2.5-3B-Instruct, Llama-3.1-8B-Instruct and gemma-2-9b-it.
+
+**`scripts/`.** `detection/` (the robustness protocol and the query-budget curves), `utility/`
+(text generation, oracle perplexity, LLM judge), `benchmark/` (FrenchBench), `audit/` (the
+evaluation audit), `figures/`, `calibration/` (the per-model `tau_gap` and entropy thresholds).
+
+**`data/`.** The prompt sets and the fine-tuning corpus of the protocol; see `data/README.md`.
+
+Using the watermarks in your own code
+-------------------------------------
+
+A teacher is built from a configuration and shares its green list with the detector:
+
+```python
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from robust_fp.config import MainConfiguration
+from robust_fp.detection import Detector, PooledCounts
+
+cfg = MainConfiguration.from_yaml("configs/llama3.1-8b/kgwnt_q50_d4.yaml")
+tok = AutoTokenizer.from_pretrained(cfg.base_model)
+base = AutoModelForCausalLM.from_pretrained(cfg.base_model, torch_dtype=torch.bfloat16).cuda().eval()
+
+# the teacher: KGW-NT with the cell's gamma, delta and tau_gap
+teacher = cfg.watermark.config.build(tok, device="cuda")
+logits = base(input_ids).logits                       # (batch, seq_len, vocab)
+watermarked = teacher.watermark_logits(input_ids, logits)
+
+# the detector: pooled green-token statistic over N responses of a suspect model
+det = Detector(teacher, tok, base_model=base)         # base model needed only by position-restricting teachers
+counts = PooledCounts(det.gamma)
+for prompt, response in responses:
+    counts.add(det.response_flags(prompt, response))
+print(counts.z(det.z_key))                            # z > 4 flags the fingerprint
 ```
-src/robust_fp/
-  watermarks/        the teachers (watermarks a student is distilled toward): GreenList, KGW with a TokenSelector (dense / near-tie / entropy / top-k),
-                     MorphMark, NearTieWrapper, and each teacher's eligibility rule for detection
-  finetuning/        distillation data, losses and trainer
-  detection.py       the pooled green-token statistic and per-method eligibility
-  results/           readers for the result trees
-configs/<model>/     one YAML per fingerprinted model (cell); see src/robust_fp/results/cells.py for the names
-scripts/
-  detection/         robustness protocol: generate.py, detect.py, prune.py, finetune_attack.py, run_cell.sh,
-                     query_budget.py, reduce_query_budget.py
-  utility/           generate.py (utility corpus), score_ppl.py (oracle perplexity), judge.py (LLM judge)
-  benchmark/         frenchbench.sh, report_frenchbench.py
-  audit/             score_official_entropy.py, report_audit.py
-  figures/           frontier.py, query_budget.py, nt_ablation.py (provenance.py stamps each figure with its command)
-  calibration/       calibrate_thresholds.py
-data/                prompt sets and the fine-tuning corpus (see data/README.md)
+
+Teachers can also be composed directly, without a configuration file:
+
+```python
+from robust_fp.watermarks import GreenList, KGW, MorphMark, NearTieSelector, NearTieWrapper
+
+greenlist = GreenList(tok.get_vocab(), gamma=0.25, tokenizer=tok, device="cuda")
+kgw_nt = KGW(greenlist, delta=4.0, selector=NearTieSelector(tau_gap=1.5))
+morphmark_nt = NearTieWrapper(MorphMark(GreenList(tok.get_vocab(), gamma=0.5, tokenizer=tok), k_exp=4.0, p_0=0.05), tau_gap=1.5)
 ```
 
-## 1. Embedding a fingerprint
+Reproducing the paper
+---------------------
+
+### 1. Embedding a fingerprint
 
 ```bash
 export FP_MODELS_DIR=models                 # students are written to $FP_MODELS_DIR/<base>_<cell>
@@ -55,16 +140,16 @@ python -m robust_fp.train --config configs/llama3.1-8b/kgwnt_q50_d4.yaml
 Training streams three corpora from the Hugging Face Hub (`src/robust_fp/finetuning/datasets.py`);
 on nodes without network access, materialise them once with `scripts/data/build_local_corpora.py`
 and set `FP_LOCAL_DATA`. Every config trains for 2,500 steps of 64 sequences of 512 tokens on one
-80 GiB GPU. The per-model `tau_gap` and `entropy_threshold` values in the configs were calibrated
-with the procedure of `scripts/calibration/calibrate_thresholds.py` on document prefixes (the
-Qwen2.5-3B values on packed 512-token training blocks). The data streams are shuffled with fixed
-seeds; the paper's checkpoints are not bit-reproducible from the configurations.
+80 GiB GPU. The per-model `tau_gap` and `entropy_threshold` values in the configs come from
+`scripts/calibration/calibrate_thresholds.py` on document prefixes (the Qwen2.5-3B values on packed
+512-token training blocks). The data streams are shuffled with fixed seeds; the paper's checkpoints
+are not bit-reproducible from the configurations.
 
-## 2. Detection under deployment conditions
+### 2. Detection under deployment transformations
 
-`scripts/detection/run_cell.sh` runs the full protocol for one cell: eleven deployment conditions, the
-*arms* (temperatures 0.4/0.7/1.0, FP8 and 4-bit quantisation, three system instructions, Wanda and
-SparseGPT pruning at 50%, one epoch of fine-tuning), five independent generations of N=1000
+`scripts/detection/run_cell.sh` runs the full protocol for one cell: eleven deployment conditions,
+the *arms* (temperatures 0.4/0.7/1.0, FP8 and 4-bit quantisation, three system instructions, Wanda
+and SparseGPT pruning at 50%, one epoch of fine-tuning), five independent generations of N=1000
 responses each, every (arm, run) scored with the cell's own detector.
 
 ```bash
@@ -91,18 +176,22 @@ python scripts/detection/query_budget.py --model llama3.1-8b --configs configs/l
 python scripts/detection/reduce_query_budget.py --results results --models llama3.1-8b
 ```
 
-## 3. Utility
+### 3. Text quality
+
+Text quality is measured on 500 French WritingPrompts generations per model: the perplexity ratio
+to the base model under a Qwen2.5-32B-Instruct oracle, the drop in LLM-judge score (10-point rubric,
+`scripts/utility/rubric_fr_10pt.txt`), and FrenchBench accuracy.
 
 ```bash
 python scripts/utility/generate.py --model models/Llama-3.1-8B-Instruct_kgwnt_q50_d4 --cell kgwnt_q50_d4 \
     --out_dir results/utility/llama3.1-8b            # and --cell base for the base model
-python scripts/utility/score_ppl.py --dir results/utility/llama3.1-8b        # Qwen2.5-32B-Instruct oracle
+python scripts/utility/score_ppl.py --dir results/utility/llama3.1-8b
 OPENAI_API_KEY=... python scripts/utility/judge.py --files results/utility/llama3.1-8b/comps_*.json \
     --out_dir results/judge/llama3.1-8b
 scripts/benchmark/frenchbench.sh models/Llama-3.1-8B-Instruct_kgwnt_q50_d4 results/frenchbench/llama3.1-8b/kgwnt_q50_d4
 ```
 
-## 4. Figures
+### 4. Figures
 
 ```bash
 python scripts/figures/frontier.py --results results --models qwen2.5-3b llama3.1-8b --axis ratio
@@ -115,7 +204,7 @@ python scripts/figures/nt_ablation.py --results results --model llama3.1-8b --pa
 The *designed grid* (`DESIGNED_GRID` in `src/robust_fp/results/cells.py`) is the set of cells each
 family's frontier is drawn from. Every figure writes a `.cmd.txt` with the command that produced it.
 
-## 5. Evaluation audit
+### 5. Evaluation audit
 
 The audit compares, on identical generations, the quality metric of the evaluation code of
 Gloaguen et al. with a conditional perplexity under the same oracle, and adds FrenchBench accuracy:
@@ -128,7 +217,8 @@ python scripts/utility/score_ppl.py --dir results/audit/llama3.1-8b
 python scripts/audit/report_audit.py --results results --models llama3.1-8b
 ```
 
-## Adding a watermark
+Adding a watermark
+------------------
 
 A teacher is a `Watermark` (`src/robust_fp/watermarks/base.py`): it returns watermarked logits
 through `watermark_logits_diff` and, when its detector scores only some positions, those positions
@@ -153,11 +243,8 @@ To expose a new teacher in the YAML configuration, add its flag to `KGWWatermark
 flags exclude each other), `_selector`/`build` (which class to instantiate) and `name`. The class
 docstring lists the mapping from flags to classes.
 
-## Tests
-
-`pytest tests` runs on CPU.
-
-## Citation
+Citation
+--------
 
 ```bibtex
 @article{hwang2026fingerprinting,
