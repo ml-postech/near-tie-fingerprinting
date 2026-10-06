@@ -81,9 +81,6 @@ unwatermarked base model is scored as the cell `base` with the config of any cel
 model; its z-scores give the null distribution. It has no config of its own and is left out of the
 query-budget curves.
 
-Responses are sampled at top_p 0.9 and top_k 50, the support the utility corpus is generated with.
-`TOP_K=0` disables the top_k cut, the setting the paper's detection results were produced with.
-
 The cell's detection statistic is the worst case over arms of the mean over runs
 (`robust_fp.results.robustness.worst_z`); a cell is detected when it clears the gate z = 4
 (`GATE_Z`). The query budget N_min, the smallest N at which the worst case clears the gate and stays

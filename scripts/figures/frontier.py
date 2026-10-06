@@ -6,7 +6,6 @@
 
     python scripts/figures/frontier.py --results results --models qwen2.5-3b llama3.1-8b --axis ratio
     python scripts/figures/frontier.py --results results --models llama3.1-8b --axis judge
-    python scripts/figures/frontier.py --results results --models llama3.1-8b --methods kgw --sweep_line --label_points
 
 Every cell of the designed grid is drawn faded; the non-dominated cells among those that clear the
 detection gate are joined into the method's frontier. ``--axis ratio`` puts PPL_fp / PPL_base on a
@@ -51,9 +50,6 @@ ap.add_argument("--xscale", default="log", choices=["log", "linear"], help="scal
 ap.add_argument("--ylabel", default=None)
 ap.add_argument("--scale_in_label", action="store_true", help="append '(log scale)' to the ratio axis label")
 ap.add_argument("--no_title", action="store_true")
-ap.add_argument("--sweep_line", action="store_true", help="join every cell of a family in grey, under the frontier")
-ap.add_argument("--label_points", action="store_true", help="annotate every cell with its setting")
-ap.add_argument("--label_side", default="below", choices=["below", "right"])
 ap.add_argument("--no_errorbar", action="store_true")
 ap.add_argument("--errorbar_on_top", action="store_true")
 # legend
@@ -191,10 +187,6 @@ for ri, row in enumerate(ROWS):
             ax.scatter([p["x"] for p in pts], [p["z"] for p in pts], marker=s["mk"],
                        s=(s["ms"] * A.line_scale * A.marker_scale) ** 2 * 0.75, facecolor=s["c"],
                        edgecolor="white", linewidth=0.4 * A.line_scale, alpha=0.30, zorder=2)
-            if A.sweep_line and len(pts) > 1:
-                sw = sorted(pts, key=lambda p: p["x"])
-                ax.plot([p["x"] for p in sw], [p["z"] for p in sw], color="0.6", lw=1.2, ls="-", zorder=3,
-                        solid_capstyle="round")
             pf = pareto(pts)
             if not pf:
                 continue
@@ -207,12 +199,6 @@ for ri, row in enumerate(ROWS):
                     solid_capstyle="round", solid_joinstyle="round",
                     label=s["lbl"] if (ri == 0 and ci == 0) else None,
                     markeredgecolor="white", markeredgewidth=0.8, zorder=6)
-            if A.label_points:
-                for p in pts:
-                    off, ha = ((0, -13), "center") if A.label_side == "below" else ((7, -9), "left")
-                    ax.annotate(p["tag"], xy=(p["x"], p["z"]), xytext=off, textcoords="offset points",
-                                ha=ha, va="top", fontsize=FONT["note"], color=s["c"], zorder=7,
-                                annotation_clip=False)
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
         if A.yticks:
