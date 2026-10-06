@@ -7,11 +7,11 @@
     python scripts/report_results.py --results results --models llama3.1-8b [--cells kgw_d4 kgwnt_q50_d4] [--md_out table.md]
 
 Columns:
-    worst-case z   minimum over the deployment conditions of the mean z over runs (detected when >= 4)
+    worst-case z   minimum over the deployment conditions of the mean z over runs (detected when it clears the gate z = 4)
     binding        the deployment condition that attains the minimum
     PPL ratio      oracle perplexity of the cell's generations over the unwatermarked base model's
     judge drop     LLM-judge score of the base minus the cell's, with a 95% half-width
-    N_min          smallest query budget at which the worst case clears the gate and stays above it
+    N_min          smallest number of responses at which the worst case clears the gate and stays above it
 A column is blank when its results are not in the tree.
 """
 import argparse

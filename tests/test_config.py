@@ -26,10 +26,10 @@ def test_every_shipped_config_parses_and_names_its_cell():
                 "sweetnt": "sweet+neartie", "morphmarknt": "morphmark+neartie"}[fam] == teacher
 
 
-def test_designed_grid_covers_the_frontier_cells():
+def test_designed_grid_is_complete_for_every_model():
     designed = [f for f in glob.glob(os.path.join(ROOT, "configs", "*", "*.yaml"))
                 if is_designed(os.path.basename(f)[:-5])]
-    assert len(designed) == 51 * 4          # 226 configs; the rest are extra MorphMark settings and the near-tie ablation cells
+    assert len(designed) == 51 * 4          # 226 configs; the rest are the stronger MorphMark settings and the near-tie combinations
 
 
 def test_unknown_keys_are_rejected(tmp_path):

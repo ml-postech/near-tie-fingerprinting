@@ -12,7 +12,7 @@ of the batch-padded sequence are scored. This script reproduces that computation
 ``comps_*.json`` files that ``scripts/utility/score_ppl.py`` scores with a conditional perplexity,
 so the two instruments can be compared on identical text.
 
-    python scripts/audit/score_official_entropy.py --dir results/utility/llama3.1-8b --cells base kgw_d4 kgwnt_q50_d4
+    python scripts/audit/score_official_entropy.py --dir results/audit/llama3.1-8b --cells base kgw_d4 kgwnt_q50_d4
 
 Writes ``<dir>/official_entropy.json`` as ``{cell: {mean, n, values}}``.
 """

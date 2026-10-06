@@ -21,10 +21,6 @@ class JudgeRun:
         with open(p) as fh:
             return json.load(fh)
 
-    @property
-    def has_base(self) -> bool:
-        return self._load("base") is not None
-
     def mean(self, cell: str) -> Optional[float]:
         d = self._load(cell)
         return None if d is None else d.get("mean")

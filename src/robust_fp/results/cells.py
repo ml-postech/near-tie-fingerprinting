@@ -11,12 +11,12 @@ A cell is one fingerprinted model, named ``<family>_<setting>``:
     sweet_q50_d4      SWEET,     entropy threshold such that 50% of the base model's positions are high-entropy
     kgwtk_k5_d4       KGW-TK,    top-5 window, delta = 4
     morphmark_k13_p15 MorphMark, k_exp = 1.3, p_0 = 0.15
-    sweetnt_q50_d4_t150       SWEET + near-tie wrapper, tau_gap = 1.50
+    sweetnt_q50_d4_t250       SWEET + near-tie wrapper, tau_gap = 2.50
     morphmarknt_k40_p05_t150  MorphMark + near-tie wrapper, tau_gap = 1.50
 
-``DESIGNED_GRID`` lists the cells of each family that the paper's frontier is drawn from.
-``MORPHMARK_EXTRA`` lists three stronger MorphMark settings, outside the grid, that the near-tie
-restriction is applied to; the ``sweetnt`` and ``morphmarknt`` cells exist for llama3.1-8b.
+``DESIGNED_GRID`` is the main comparison grid of the paper: 3 KGW settings and 12 settings of every
+other family, for each base model. The three stronger MorphMark settings (``k30_p15``, ``k40_p05``,
+``k40_p70``) and the ``sweetnt`` / ``morphmarknt`` cells of llama3.1-8b lie outside it.
 """
 FAMILIES = ("kgw", "sweet", "morphmark", "kgwtk", "kgwnt", "sweetnt", "morphmarknt")
 
@@ -27,7 +27,6 @@ DESIGNED_GRID = {
     "kgwtk":     [f"k{k}_d{d}" for k in (2, 5, 10, 50) for d in (1, 2, 4)],
     "morphmark": [f"k{k}_p{p}" for k in ("05", "10", "13", "20") for p in ("15", "30", "50")],
 }
-MORPHMARK_EXTRA = ["k30_p15", "k40_p05", "k40_p70"]
 
 
 def family_of(cell: str):

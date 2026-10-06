@@ -2,7 +2,7 @@
 
 | file | rows | used by |
 |---|---:|---|
-| `french_alpaca_20000.json` | 20,000 | detection prompts: `scripts/detection/run_cell.sh` (`PROMPTS`). The protocol uses the first `N` (1,000); the pool allows query budgets beyond it |
+| `french_alpaca_20000.json` | 20,000 | detection prompts: `scripts/detection/run_cell.sh` (`PROMPTS`). The protocol reads the first `N` (1,000) |
 | `french_alpaca_1000.json` | 1,000 | the evaluation prompts of the audit (`scripts/audit`) |
 | `writingprompts_fr_500.json` | 500 | utility prompts: `scripts/utility/generate.py` |
 | `wildchat_fr.json.gz` | 15,990 | fine-tuning corpus of the `ft` arm: `scripts/detection/finetune_attack.py` |

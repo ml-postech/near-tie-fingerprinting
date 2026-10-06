@@ -77,10 +77,6 @@ def cell_arms(results: str, model: str, cell: str, arms=None, runs: int = RUNS) 
     return out
 
 
-def worst_z(results: str, model: str, cell: str, arms=None, runs: int = RUNS) -> Optional[float]:
-    per = cell_arms(results, model, cell, arms=arms, runs=runs)
-    return None if per is None else min(per.values())
-
 
 # ---------------------------------------------------------------------------- query budget
 def query_budget_curves(results: str, model: str) -> Dict[tuple, list]:

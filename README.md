@@ -15,6 +15,8 @@ The code builds on the watermark-distillation fingerprinting framework of Gloagu
 
 **Build environment**
 
+Python 3.10 or later.
+
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -34,16 +36,20 @@ export FP_MODELS_DIR=models
 python -m robust_fp.train --config configs/llama3.1-8b/kgwnt_q50_d4.yaml
 ```
 
+The per-model `tau_gap` (KGW-NT) and `entropy_threshold` (SWEET) values of the configs are percentiles of the base model's logit-gap and entropy distributions on the training corpus:
+
+```bash
+python scripts/calibration/calibrate_thresholds.py --model meta-llama/Llama-3.1-8B-Instruct --out results/calibration/llama3.1-8b.json
+```
+
 **Detect it under deployment transformations**
 
-`run_cell.sh` runs the protocol of the paper for one cell: eleven deployment conditions (temperatures 0.4/0.7/1.0, FP8 and 4-bit quantisation, three system prompts, Wanda and SparseGPT pruning, one epoch of fine-tuning), five generations of N=1000 responses each, every one scored with the cell's own detector. A cell is detected when the worst case over conditions of the mean z-score clears z = 4.
+`run_cell.sh` runs the protocol of the paper for one cell: eleven deployment conditions (temperatures 0.4/0.7/1.0, FP8 and 4-bit quantisation, three system prompts, Wanda and SparseGPT pruning, one epoch of fine-tuning), five generations of N=1000 responses each, every one scored with the cell's own detector. A cell is detected when the worst case over conditions of the mean z-score clears z = 4; its query budget N_min is the smallest number of responses at which it stays detected.
 
 ```bash
 CELL=kgwnt_q50_d4 MODEL=llama3.1-8b CONFIG=configs/llama3.1-8b/kgwnt_q50_d4.yaml \
 CHECKPOINT=models/Llama-3.1-8B-Instruct_kgwnt_q50_d4 PROMPTS=data/french_alpaca_20000.json \
 RESULTS=results scripts/detection/run_cell.sh
-# gemma-2 (no system role): SYSTEM_MERGE=1 CALIBRATION=dolly SYS_PREFIX="Réponds uniquement en français."
-# query budgets N_min:
 python scripts/detection/query_budget.py --model llama3.1-8b --configs configs/llama3.1-8b --results results
 python scripts/detection/reduce_query_budget.py --results results --models llama3.1-8b
 ```
@@ -65,7 +71,17 @@ scripts/benchmark/frenchbench.sh models/Llama-3.1-8B-Instruct_kgwnt_q50_d4 resul
 python scripts/report_results.py --results results --models llama3.1-8b
 ```
 
-prints, per cell, the worst-case z-score and its binding condition, the PPL ratio, the LLM-judge drop and N_min. `scripts/audit/` reproduces the utility re-evaluation of Table 1.
+prints, per cell, the worst-case z-score and its binding condition, the PPL ratio, the LLM-judge drop and N_min.
+
+The evaluation audit (Table 1) scores the same generations with the quality metric of Gloaguen et al. and with the oracle perplexity:
+
+```bash
+python scripts/utility/generate.py --model <checkpoint> --cell <cell> --prompts data/french_alpaca_1000.json \
+    --n 1000 --temperature 0.7 --max_new_tokens 200 --top_k 0 --out_dir results/audit/llama3.1-8b
+python scripts/utility/score_ppl.py --dir results/audit/llama3.1-8b
+python scripts/audit/score_official_entropy.py --dir results/audit/llama3.1-8b
+python scripts/audit/report_audit.py --results results --models llama3.1-8b
+```
 
 ## 🧩 Using the watermarks in your own code
 

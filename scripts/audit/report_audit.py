@@ -8,7 +8,8 @@
 
 Reads, per model,
     results/audit/<model>/      generations on the evaluation prompts of Gloaguen et al. (French-Alpaca
-                                instructions, temperature 0.7, 200 tokens), scored with both
+                                instructions, temperature 0.7, 200 tokens: scripts/utility/generate.py
+                                --prompts data/french_alpaca_1000.json), scored with both
                                 score_official_entropy.py and score_ppl.py
     results/utility/<model>/    the utility corpus (WritingPrompts-fr, 256 tokens), scored with score_ppl.py
     results/frenchbench/<model>/<cell>/   FrenchBench accuracies (optional column)
