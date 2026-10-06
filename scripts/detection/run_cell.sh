@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+#
 # The robustness protocol for ONE fingerprinted model: eleven deployment conditions (arms), five
 # independent generations of N responses each, every (arm, run) scored with the cell's own detector.
 #
@@ -16,10 +20,8 @@
 #   PROMPTS     JSON list of detection prompts         RESULTS     results root (default: results)
 # Optional:
 #   N (1000) responses per run   RUNS (5)   TOP_K (50)   SYSTEM_MERGE=1 for models without a system role
-#   SYS_PREFIX   directive written in front of every prompt of the system-instruction arms (default: none).
-#                gemma-2 has no system role, so the English instruction merges into the user turn and
-#                the model then mostly answers in English; "Réponds uniquement en français." keeps
-#                those arms in French, so that they measure the fingerprint and not language drift.
+#   SYS_PREFIX   directive written in front of every prompt of the system-instruction arms (default: none;
+#                "Réponds uniquement en français." for gemma-2, see README)
 #   CALIBRATION  pruning calibration set: ultrachat (default) or dolly
 #   FT_CORPUS    fine-tuning corpus (default: data/wildchat_fr.json.gz)
 #   TMP          scratch directory for the pruned / fine-tuned checkpoints (default: $RESULTS/tmp/$MODEL/$CELL)

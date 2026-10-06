@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Fine-tune a fingerprinted model on a downstream corpus (the fine-tuning arm of the protocol).
 
     python scripts/detection/finetune_attack.py --model <checkpoint> --corpus data/wildchat_fr.json.gz \

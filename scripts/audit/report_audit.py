@@ -1,9 +1,13 @@
-"""The evaluation audit table: the prior work's metric against a conditional perplexity.
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
+"""The evaluation audit table: the quality metric of Gloaguen et al. against a conditional perplexity.
 
     python scripts/audit/report_audit.py --results results --models llama3.1-8b --cells base kgw_d4 kgwnt_q50_d4
 
 Reads, per model,
-    results/audit/<model>/      generations on the prior work's evaluation prompts (French-Alpaca
+    results/audit/<model>/      generations on the evaluation prompts of Gloaguen et al. (French-Alpaca
                                 instructions, temperature 0.7, 200 tokens), scored with both
                                 score_official_entropy.py and score_ppl.py
     results/utility/<model>/    the utility corpus (WritingPrompts-fr, 256 tokens), scored with score_ppl.py
@@ -34,7 +38,7 @@ def fmt(v, base):
     return "—" if v is None or base is None else f"{v:.3f} ({v / base:.2f}x)"
 
 
-lines = ["| model | cell | prior metric, their prompts | PPL, their prompts | PPL, utility corpus | FrenchBench acc (9 tasks) |",
+lines = ["| model | cell | Gloaguen et al. metric (their prompts) | PPL (their prompts) | PPL (utility corpus) | FrenchBench acc (9 tasks) |",
          "|---|---|---:|---:|---:|---:|"]
 for model in a.models:
     audit = os.path.join(a.results, "audit", model)

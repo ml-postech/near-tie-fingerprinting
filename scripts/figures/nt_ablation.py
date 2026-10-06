@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Near-tie restriction applied to other watermarks: a watermark against its near-tie variant.
 
     python scripts/figures/nt_ablation.py --results results --model llama3.1-8b --pair sweet morphmark --axis both

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Record the command that produced a figure next to the figure (``<name>.cmd.txt``)."""
 import os
 import subprocess

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Reduce the query-budget curves to N_min per cell.
 
     python scripts/detection/reduce_query_budget.py --results results --models llama3.1-8b qwen2.5-3b

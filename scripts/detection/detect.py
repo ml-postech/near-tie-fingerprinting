@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Score generated responses with the cell's own detector and append one row to ``detect.jsonl``.
 
     python scripts/detection/detect.py --config configs/llama3.1-8b/kgwnt_q50_d4.yaml \
@@ -6,7 +10,7 @@
 
 The detector is built from the configuration (green list and the teacher's eligibility rule) and the
 base model it names; the fingerprinted model is never loaded. See :mod:`robust_fp.detection` for the statistic.
-System instructions used at generation time are not part of the scored text: the verifier sees
+System instructions used at generation time are not part of the scored text: the detector sees
 only the prompt and the response.
 """
 import argparse

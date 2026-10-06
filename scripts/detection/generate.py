@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Generate responses from a (possibly quantised) fingerprinted model under one deployment condition.
 
 Writes ``<out_prefix>_r0.jsonl .. _r{runs-1}.jsonl``, one independent generation per run, each line

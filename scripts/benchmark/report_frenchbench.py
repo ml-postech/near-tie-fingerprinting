@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """FrenchBench accuracy per cell, and its distance from the unwatermarked base.
 
     python scripts/benchmark/report_frenchbench.py --results results --models llama3.1-8b [--cells base kgw_d4 ...]

@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """The detection / utility frontier: worst-case z against the cost of the fingerprint.
 
     python scripts/figures/frontier.py --results results --models qwen2.5-3b llama3.1-8b --axis ratio

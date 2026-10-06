@@ -2,8 +2,8 @@
 
 Code for the paper's method (KGW-NT: KGW watermark distillation restricted to the near-tie support
 set), the baselines it is compared with (KGW, KGW-TK, SWEET, MorphMark), and the experiments of the
-paper: the detection/utility frontier, the query-budget curves, the near-tie ablation on SWEET and
-MorphMark, and the evaluation audit.
+paper: the detection/utility frontier, the query-budget curves, the near-tie restriction applied to
+SWEET and MorphMark, and the evaluation audit.
 
 The package extends the watermark-distillation fingerprinting code of Gloaguen et al.
 ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints)) and keeps
@@ -27,7 +27,7 @@ generator, so a fingerprint must be detected on the same kind of device it was e
 
 ```
 src/robust_fp/
-  watermarks/        the teachers: GreenList, KGW with a TokenSelector (dense / near-tie / entropy / top-k),
+  watermarks/        the teachers (watermarks a student is distilled toward): GreenList, KGW with a TokenSelector (dense / near-tie / entropy / top-k),
                      MorphMark, NearTieWrapper, and each teacher's eligibility rule for detection
   finetuning/        distillation data, losses and trainer
   detection.py       the pooled green-token statistic and per-method eligibility
@@ -55,17 +55,17 @@ Training streams three corpora from the Hugging Face Hub (`src/robust_fp/finetun
 on nodes without network access, materialise them once with `scripts/data/build_local_corpora.py`
 and set `FP_LOCAL_DATA`. Every config trains for 2,500 steps of 64 sequences of 512 tokens on one
 80 GiB GPU. The per-model `tau_gap` and `entropy_threshold` values in the configs were calibrated
-with the procedure of `scripts/calibration/calibrate_thresholds.py` (the Llama and gemma values are
-reproduced by it; the Qwen2.5-3B values were calibrated on packed 512-token training blocks rather
-than on document prefixes). Training is not bit-reproducible: the data streams are shuffled with
-fixed seeds, but the students of the paper were trained before those seeds were fixed.
+with the procedure of `scripts/calibration/calibrate_thresholds.py`; it reproduces the Llama and
+gemma values, and the Qwen2.5-3B values were calibrated on packed 512-token training blocks rather
+than on document prefixes. Retraining a cell does not reproduce the paper's checkpoint bit for bit:
+this release shuffles the data streams with fixed seeds, which the paper's training runs did not set.
 
 ## 2. Detection under deployment conditions
 
-`scripts/detection/run_cell.sh` runs the full protocol for one cell: eleven deployment conditions
-(temperatures 0.4/0.7/1.0, FP8 and 4-bit quantisation, three system instructions, Wanda and
+`scripts/detection/run_cell.sh` runs the full protocol for one cell: eleven deployment conditions, the
+*arms* (temperatures 0.4/0.7/1.0, FP8 and 4-bit quantisation, three system instructions, Wanda and
 SparseGPT pruning at 50%, one epoch of fine-tuning), five independent generations of N=1000
-responses each, every (condition, run) scored with the cell's own detector.
+responses each, every (arm, run) scored with the cell's own detector.
 
 ```bash
 CELL=kgwnt_q50_d4 MODEL=llama3.1-8b CONFIG=configs/llama3.1-8b/kgwnt_q50_d4.yaml \
@@ -77,17 +77,17 @@ gemma-2 has no system role: run it with `SYSTEM_MERGE=1 CALIBRATION=dolly SYS_PR
 uniquement en français."`. With the system instruction merged into the user turn gemma-2 otherwise
 answers mostly in English, and a French green list cannot show in English text; the directive keeps
 the three system-instruction arms a test of the fingerprint rather than of language drift. The
-unwatermarked base model is a cell too
-(its z is the null distribution); score it with the config of any cell of the same model.
+unwatermarked base model is scored as the cell `base` with the config of any cell of the same
+model; its z-scores give the null distribution. It has no config of its own and is left out of the
+query-budget curves.
 
 Responses are sampled at top_p 0.9 and top_k 50, the support the utility corpus is generated with.
-The detection campaign of the paper sampled without a top_k cut; on 8B cells re-run under both
-settings the worst-case z moved by at most 0.2 and the binding condition did not change, so the
-two settings are interchangeable for the detection axis (``TOP_K=0`` reproduces the paper's setting).
+`TOP_K=0` disables the top_k cut, the setting the paper's detection results were produced with.
 
-The cell's detection statistic is the worst case over conditions of the mean over runs
-(`robust_fp.results.robustness.worst_z`). The query budget N_min is obtained by re-scoring the same
-responses at every budget:
+The cell's detection statistic is the worst case over arms of the mean over runs
+(`robust_fp.results.robustness.worst_z`); a cell is detected when it clears the gate z = 4
+(`GATE_Z`). The query budget N_min, the smallest N at which the worst case clears the gate and stays
+above it, is obtained by re-scoring the same responses at every budget:
 
 ```bash
 python scripts/detection/query_budget.py --model llama3.1-8b --configs configs/llama3.1-8b --results results
@@ -119,8 +119,8 @@ Every figure writes a `.cmd.txt` with the command that produced it.
 
 ## 5. Evaluation audit
 
-The audit compares, on identical generations, the quality metric of the prior work's evaluation
-code with a conditional perplexity under the same oracle, and adds FrenchBench accuracy:
+The audit compares, on identical generations, the quality metric of the evaluation code of
+Gloaguen et al. with a conditional perplexity under the same oracle, and adds FrenchBench accuracy:
 
 ```bash
 python scripts/utility/generate.py --model <checkpoint> --cell <cell> --prompts data/french_alpaca_1000.json \

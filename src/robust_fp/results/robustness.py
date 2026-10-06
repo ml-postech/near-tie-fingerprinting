@@ -31,18 +31,11 @@ RUNS = 5
 
 
 def _z_key(row: dict) -> str:
-    """The statistic a detection row is read with.
-
-    ``detect.py`` and ``query_budget.py`` record it as ``z_key``. For a row written without it, the
-    rule is derived from the recorded ``teacher`` name: the near-tie teachers and SWEET restrict the
-    scored positions (``elig_z``), every other teacher is read over all positions (``all_z``).
-    """
-    if row.get("z_key") in ("elig_z", "all_z"):
-        return row["z_key"]
-    if "teacher" not in row:
-        raise KeyError(f"detection row {row.get('label', row.get('cell'))!r} records neither z_key nor teacher")
-    name = row["teacher"]
-    return "elig_z" if ("neartie" in name or "sweet" in name) else "all_z"
+    """The statistic a detection row is read with, as recorded by ``detect.py`` (``elig_z`` or ``all_z``)."""
+    key = row.get("z_key")
+    if key not in ("elig_z", "all_z"):
+        raise KeyError(f"detection row {row.get('label', row.get('cell'))!r} records no z_key")
+    return key
 
 
 def detect_path(results: str, model: str, cell: str) -> str:

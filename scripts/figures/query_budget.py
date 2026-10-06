@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Achievable cost as a function of the query budget.
 
     python scripts/figures/query_budget.py --results results --models llama3.2-3b qwen2.5-3b llama3.1-8b --no_chord
@@ -63,7 +67,7 @@ BASELINES = [f for f in ORDER if f != "kgwnt"]
 
 
 def cells(model, family):
-    """Sorted ``[(N_min, cost)]`` of the family's designed cells that clear the gate within B."""
+    """Sorted ``[(N_min, cost)]`` of the family's designed cells that clear the gate within ``--max_budget``."""
     util = UtilityTable(A.results, model)
     judge = JudgeRun(A.results, model, prefix=A.judge_prefix) if A.axis == "judge" else None
     out = []

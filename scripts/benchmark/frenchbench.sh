@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+#
 # FrenchBench accuracy of one model: the nine accuracy-scored subtasks of lm-evaluation-harness's
 # `french_bench` group, zero-shot, with the chat template applied, on the full test sets.
 #

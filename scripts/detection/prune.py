@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Prune a checkpoint to 50% unstructured sparsity with Wanda or SparseGPT (llmcompressor).
 
     python scripts/detection/prune.py --model <checkpoint> --method Wanda --out_dir <dir>

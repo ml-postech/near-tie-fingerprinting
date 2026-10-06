@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Perplexity of generated responses under an external oracle model.
 
     python scripts/utility/score_ppl.py --dir results/utility/llama3.1-8b

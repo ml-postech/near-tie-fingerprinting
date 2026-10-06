@@ -49,10 +49,9 @@ class DistillationTrainer(Trainer):
                 lambdas=lambdas.index_select(0, rows),
             )
 
-        # transformers >= 4.53 returns a custom loss without dividing it by
-        # gradient_accumulation_steps. The loss is divided here for vocabularies of LARGE_VOCAB tokens
-        # and more (gemma-2) and returned unscaled for the other models; both branches are what the
-        # training runs of the paper used.
+        # transformers >= 4.53 returns a custom loss without dividing it by gradient_accumulation_steps.
+        # The loss is divided here for vocabularies of LARGE_VOCAB tokens and more (gemma-2) and
+        # returned unscaled for the other models.
         if student_logits.shape[-1] >= LARGE_VOCAB and self.args.gradient_accumulation_steps > 1:
             total = total / self.args.gradient_accumulation_steps
         return (total, outputs) if return_outputs else total

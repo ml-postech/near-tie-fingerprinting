@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Generate the utility corpus: one open-ended response per prompt, with vLLM.
 
     python scripts/utility/generate.py --model <checkpoint> --cell kgwnt_q50_d4 \

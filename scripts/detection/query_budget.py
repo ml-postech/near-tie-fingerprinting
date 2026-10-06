@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Re-score the protocol's responses at every query budget N on a grid.
 
     python scripts/detection/query_budget.py --model llama3.1-8b --configs configs/llama3.1-8b \

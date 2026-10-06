@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """Materialise the training corpora as parquet files for nodes without network access.
 
     python scripts/data/build_local_corpora.py --out /data/fp_corpora --luciefr_docs 200000 --openwebtext_docs 200000

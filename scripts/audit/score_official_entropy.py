@@ -1,6 +1,10 @@
-"""The quality metric reported by the prior work, reproduced as implemented.
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
 
-The evaluation code of the prior work (``src/robust_fp/quality/ppl.py`` in its repository) reports a
+"""The quality metric reported by Gloaguen et al., reproduced as implemented.
+
+The evaluation code of Gloaguen et al. (``src/robust_fp/quality/ppl.py`` in eth-sri/robust-llm-fingerprints) reports a
 number labelled perplexity. What the function computes is the mean, over positions, of the Shannon
 entropy of the oracle's next-token distribution on ``"{prompt} {completion}"``: the generated tokens
 never enter as targets, the mean is taken over padded positions too, and only the last 250 tokens

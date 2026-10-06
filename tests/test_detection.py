@@ -1,3 +1,7 @@
+# Copyright (c) 2026 the authors.
+# Licensed under the Responsible AI SOURCE CODE License, Version 1.1
+# (see LICENSE_CODE).
+
 """The pooled statistic and the query-budget reduction (CPU)."""
 import math
 
@@ -14,11 +18,11 @@ def test_z_score_null_and_full():
     assert math.isnan(z_score(0, 0, 0.25))
 
 
-def test_row_z_key_recorded_or_derived():
+def test_row_z_key_is_the_recorded_one():
     assert _z_key({"teacher": "kgw", "z_key": "all_z"}) == "all_z"
-    assert _z_key({"teacher": "neartie"}) == "elig_z" and _z_key({"teacher": "sweet+neartie"}) == "elig_z"
-    assert _z_key({"teacher": "morphmark"}) == "all_z" and _z_key({"teacher": "topk"}) == "all_z"
-    assert _z_key({"teacher": "morphmark+neartie"}) == "elig_z"
+    assert _z_key({"teacher": "neartie", "z_key": "elig_z"}) == "elig_z"
+    with pytest.raises(KeyError):
+        _z_key({"teacher": "neartie"})
 
 
 def test_detector_z_key_follows_the_teacher():
