@@ -3,7 +3,7 @@
 Code for [*Language Model Fingerprinting Requires Rethinking Watermark Teachers*](https://arxiv.org/abs/2610.04169)
 (Hwang, Nasery, Oh and Ok, 2026): the method (KGW-NT: KGW watermark distillation restricted to the
 near-tie support set), the baselines it is compared with (KGW, KGW-TK, SWEET, MorphMark), and the
-experiments of the paper: the detection/utility frontier, the query-budget curves, the near-tie
+main experiments of the paper: the detection/utility frontier, the query-budget curves, the near-tie
 restriction applied to SWEET and MorphMark, and the evaluation audit.
 
 The package extends the watermark-distillation fingerprinting code of Gloaguen et al.
@@ -40,7 +40,7 @@ scripts/
   utility/           generate.py (utility corpus), score_ppl.py (oracle perplexity), judge.py (LLM judge)
   benchmark/         frenchbench.sh, report_frenchbench.py
   audit/             score_official_entropy.py, report_audit.py
-  figures/           frontier.py, query_budget.py, nt_ablation.py
+  figures/           frontier.py, query_budget.py, nt_ablation.py (provenance.py stamps each figure with its command)
   calibration/       calibrate_thresholds.py
 data/                prompt sets and the fine-tuning corpus (see data/README.md)
 ```
@@ -56,10 +56,9 @@ Training streams three corpora from the Hugging Face Hub (`src/robust_fp/finetun
 on nodes without network access, materialise them once with `scripts/data/build_local_corpora.py`
 and set `FP_LOCAL_DATA`. Every config trains for 2,500 steps of 64 sequences of 512 tokens on one
 80 GiB GPU. The per-model `tau_gap` and `entropy_threshold` values in the configs were calibrated
-with the procedure of `scripts/calibration/calibrate_thresholds.py`; it reproduces the Llama and
-gemma values, and the Qwen2.5-3B values were calibrated on packed 512-token training blocks rather
-than on document prefixes. Retraining a cell does not reproduce the paper's checkpoint bit for bit:
-this release shuffles the data streams with fixed seeds, which the paper's training runs did not set.
+with the procedure of `scripts/calibration/calibrate_thresholds.py` on document prefixes (the
+Qwen2.5-3B values on packed 512-token training blocks). The data streams are shuffled with fixed
+seeds; the paper's checkpoints are not bit-reproducible from the configurations.
 
 ## 2. Detection under deployment conditions
 
@@ -116,7 +115,8 @@ python scripts/figures/nt_ablation.py --results results --model llama3.1-8b --pa
     --nt_cells morphmarknt_k40_p05_t069 morphmarknt_k40_p05_t150 morphmarknt_k40_p05_t250 morphmarknt_k40_p05_t375
 ```
 
-Every figure writes a `.cmd.txt` with the command that produced it.
+The *designed grid* (`DESIGNED_GRID` in `src/robust_fp/results/cells.py`) is the set of cells each
+family's frontier is drawn from. Every figure writes a `.cmd.txt` with the command that produced it.
 
 ## 5. Evaluation audit
 

@@ -15,6 +15,8 @@ A cell is one fingerprinted model, named ``<family>_<setting>``:
     morphmarknt_k40_p05_t150  MorphMark + near-tie wrapper, tau_gap = 1.50
 
 ``DESIGNED_GRID`` lists the cells of each family that the paper's frontier is drawn from.
+``MORPHMARK_EXTRA`` lists three stronger MorphMark settings, outside the grid, that the near-tie
+restriction is applied to; the ``sweetnt`` and ``morphmarknt`` cells exist for llama3.1-8b.
 """
 FAMILIES = ("kgw", "sweet", "morphmark", "kgwtk", "kgwnt", "sweetnt", "morphmarknt")
 
@@ -25,6 +27,7 @@ DESIGNED_GRID = {
     "kgwtk":     [f"k{k}_d{d}" for k in (2, 5, 10, 50) for d in (1, 2, 4)],
     "morphmark": [f"k{k}_p{p}" for k in ("05", "10", "13", "20") for p in ("15", "30", "50")],
 }
+MORPHMARK_EXTRA = ["k30_p15", "k40_p05", "k40_p70"]
 
 
 def family_of(cell: str):

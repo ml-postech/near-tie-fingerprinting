@@ -11,12 +11,11 @@ from typing import Optional, Tuple
 
 
 class JudgeRun:
-    def __init__(self, results: str, model: str, prefix: str = "judge_"):
+    def __init__(self, results: str, model: str):
         self.dir = os.path.join(results, "judge", model)
-        self.prefix = prefix
 
     def _load(self, cell: str) -> Optional[dict]:
-        p = os.path.join(self.dir, f"{self.prefix}{cell}.json")
+        p = os.path.join(self.dir, f"judge_{cell}.json")
         if not os.path.exists(p):
             return None
         with open(p) as fh:

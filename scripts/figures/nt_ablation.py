@@ -25,7 +25,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "..", "src"))
 from style import GATE_LABEL, GATE_Z, LEGEND, PANEL, STYLE, scaled_font, setup  # noqa: E402
 from provenance import write_cmd  # noqa: E402
-from robust_fp.results import DESIGNED_GRID, JudgeRun, UtilityTable, family_of, worst_z  # noqa: E402
+from robust_fp.results import DESIGNED_GRID, MORPHMARK_EXTRA, JudgeRun, UtilityTable, family_of, worst_z  # noqa: E402
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 ap.add_argument("--results", default="results")
@@ -33,7 +33,6 @@ ap.add_argument("--model", default="llama3.1-8b")
 ap.add_argument("--pair", nargs="+", default=["morphmark"], choices=["morphmark", "sweet", "nt3"])
 ap.add_argument("--axis", default="ratio", choices=["ratio", "judge", "both"])
 ap.add_argument("--boot", type=int, default=2000)
-ap.add_argument("--judge_prefix", default="judge_")
 ap.add_argument("--nt_cells", nargs="+", default=None, help="restrict the near-tie series to these cells")
 ap.add_argument("--legend_loc", default="in_band", choices=["in_band", "above_gate"])
 ap.add_argument("--legend_fontsize", type=float, default=None)
@@ -73,7 +72,7 @@ FAMILY = {"morphmark": "morphmark", "morphmark_nt": "morphmarknt", "sweet": "swe
           "nt_kgw": "kgwnt", "nt_sweet": "sweetnt", "nt_morphmark": "morphmarknt"}
 
 util = UtilityTable(A.results, A.model)
-judge = JudgeRun(A.results, A.model, prefix=A.judge_prefix)
+judge = JudgeRun(A.results, A.model)
 JBASE = judge.mean("base")
 if A.axis in ("judge", "both") and JBASE is None:
     sys.exit(f"no judge score for the base model under results/judge/{A.model}")
@@ -90,7 +89,7 @@ def candidates(family):
     if family in DESIGNED_GRID:
         settings = list(DESIGNED_GRID[family])
         if family == "morphmark":
-            settings += ["k30_p15", "k40_p05", "k40_p70"]      # the stronger MorphMark settings of the ablation
+            settings += MORPHMARK_EXTRA
         return [f"{family}_{s}" for s in settings]
     found = sorted(os.path.basename(p)[len("comps_"):-len(".json")]
                    for p in glob.glob(os.path.join(util.dir, f"comps_{family}_*.json")))

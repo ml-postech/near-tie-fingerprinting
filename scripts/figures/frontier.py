@@ -31,7 +31,6 @@ ap.add_argument("--models", nargs="+", required=True, help="panel order")
 ap.add_argument("--axis", default="ratio", choices=["ratio", "judge", "both"])
 ap.add_argument("--stat", default="mean", choices=["mean", "median"])
 ap.add_argument("--methods", nargs="+", default=None, choices=ORDER, help="restrict to these families")
-ap.add_argument("--judge_prefix", default="judge_")
 ap.add_argument("--out", default=None, help="file stem (default frontier_<axis>_<models>)")
 ap.add_argument("--out_dir", default="figures")
 # layout
@@ -97,7 +96,7 @@ def load(model, axis):
     D = {f: [] for f in FAMILIES}
     util = UtilityTable(A.results, model)
     if axis == "judge":
-        judge = JudgeRun(A.results, model, prefix=A.judge_prefix)
+        judge = JudgeRun(A.results, model)
         if not judge.has_base:
             return D
 

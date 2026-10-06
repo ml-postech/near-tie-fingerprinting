@@ -33,7 +33,6 @@ ap.add_argument("--models", nargs="+", required=True)
 ap.add_argument("--axis", default="ratio", choices=["ratio", "judge"])
 ap.add_argument("--max_budget", type=int, default=1000, help="largest budget drawn")
 ap.add_argument("--no_chord", action="store_true")
-ap.add_argument("--judge_prefix", default="judge_")
 ap.add_argument("--report", action="store_true", help="print the margin to the best baseline at every budget")
 ap.add_argument("--panel", nargs=2, type=float, default=None, metavar=("W", "H"))
 ap.add_argument("--bbox", default="tight", choices=["tight", "fixed"])
@@ -69,7 +68,7 @@ BASELINES = [f for f in ORDER if f != "kgwnt"]
 def cells(model, family):
     """Sorted ``[(N_min, cost)]`` of the family's designed cells that clear the gate within ``--max_budget``."""
     util = UtilityTable(A.results, model)
-    judge = JudgeRun(A.results, model, prefix=A.judge_prefix) if A.axis == "judge" else None
+    judge = JudgeRun(A.results, model) if A.axis == "judge" else None
     out = []
     for cell, n_min in QMIN.get(model, {}).items():
         fam, _ = family_of(cell)
