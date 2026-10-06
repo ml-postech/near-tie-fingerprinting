@@ -83,7 +83,7 @@ python scripts/audit/score_official_entropy.py --dir results/audit/llama3.1-8b
 python scripts/audit/report_audit.py --results results --models llama3.1-8b
 ```
 
-## 🧩 Using the watermarks in your own code
+## 🧩 Python API
 
 ```python
 from robust_fp.config import MainConfiguration
