@@ -8,16 +8,18 @@ Official implementation of the fingerprinting method, baselines and evaluation p
 *"Language Model Fingerprinting Requires Rethinking Watermark Teachers"* by Jeongyeon Hwang,
 Anshul Nasery, Sewoong Oh and Jungseul Ok.
 
-LLM fingerprinting via watermark distillation trains a model (the *student*) toward the output
-distribution of a watermarked version of itself (the *teacher*), so that the owner can later
-recognise the model behind a black-box API from the green-token statistics of its responses. The
-paper shows that text watermarks designed to be detectable from a single output are overly strong
-teachers for this purpose, and proposes **near-tie restriction**: the watermark bias is applied
-only to green tokens whose logit lies within a window `tau_gap` of the base model's top prediction,
-and the detector scores only the positions where the base model was itself undecided. The resulting
-teacher, **KGW-NT**, improves the detection/quality trade-off under deployment changes (sampling
-temperature, system prompts, quantisation, pruning, fine-tuning), preserves more text quality at
-every query budget, and composes with existing watermarks (SWEET, MorphMark).
+**TL;DR**
+
+- Prior utility evaluation understates quality degradation in the fingerprint domain. On
+  Llama-3.1-8B, benchmark accuracy changes only modestly (0.64 → 0.61), while perplexity on
+  open-ended French generation rises 4.63 → 28.27 and an LLM-judge score falls 7.76 → 3.73.
+- We rethink watermark teachers for model fingerprinting, where verification aggregates evidence
+  across responses. This permits sparser signals; our **near-tie restriction** places the bias only
+  on green tokens close to the base model's top prediction.
+- Near-tie improves the detection–quality trade-off: on Llama-3.1-8B, at comparable worst-case
+  detectability, the PPL ratio drops 6.09 → 1.04 and the judge score improves 3.52 → 7.40 (base
+  7.51). Improvements hold across four models and query budgets, and near-tie also improves
+  existing watermarking schemes when combined with them.
 
 The code extends the watermark-distillation fingerprinting framework of Gloaguen et al.
 ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints)) and keeps
