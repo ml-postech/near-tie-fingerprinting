@@ -83,35 +83,6 @@ python scripts/audit/score_official_entropy.py --dir results/audit/llama3.1-8b
 python scripts/audit/report_audit.py --results results --models llama3.1-8b
 ```
 
-## 🧩 Python API
-
-```python
-from robust_fp.config import MainConfiguration
-from robust_fp.detection import Detector, PooledCounts
-
-cfg = MainConfiguration.from_yaml("configs/llama3.1-8b/kgwnt_q50_d4.yaml")
-teacher = cfg.watermark.config.build(tokenizer, device="cuda")      # a Watermark: KGW-NT here
-watermarked_logits = teacher.watermark_logits(input_ids, base_model(input_ids).logits)
-
-detector = Detector(teacher, tokenizer, base_model=base_model)       # the base model decides which positions are scored
-counts = PooledCounts(detector.gamma)
-for prompt, response in responses:                                   # N responses of the suspect model
-    counts.add(detector.response_flags(prompt, response))
-z = counts.z(detector.z_key)
-```
-
-Teachers compose without a configuration file as well:
-
-```python
-from robust_fp.watermarks import GreenList, KGW, MorphMark, NearTieSelector, NearTieWrapper
-
-greenlist = GreenList(tokenizer.get_vocab(), gamma=0.25, tokenizer=tokenizer, device="cuda")
-kgw_nt = KGW(greenlist, delta=4.0, selector=NearTieSelector(tau_gap=1.5))
-morphmark_nt = NearTieWrapper(MorphMark(greenlist, k_exp=4.0, p_0=0.05), tau_gap=1.5)
-```
-
-A new watermark is a `Watermark` subclass (`src/robust_fp/watermarks/base.py`): `watermark_logits_diff` for the perturbation and `eligibility` for the positions its detector scores. A new rule for *which green tokens* KGW biases is a `TokenSelector` (`selectors.py`); `tests/test_watermarks.py` has a minimal example. Flags in `src/robust_fp/config.py` expose a teacher to the YAML configuration.
-
 ## 📎 Reference BibTeX
 
 ```bibtex
