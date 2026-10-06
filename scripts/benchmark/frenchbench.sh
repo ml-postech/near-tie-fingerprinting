@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 the authors.
+# Copyright (c) 2026 Jeongyeon Hwang, Anshul Nasery, Sewoong Oh and Jungseul Ok
 # Licensed under the Responsible AI SOURCE CODE License, Version 1.1
 # (see LICENSE_CODE).
 #
