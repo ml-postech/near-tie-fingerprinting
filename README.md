@@ -1,9 +1,10 @@
 # Fingerprinting open-weight LLMs with near-tie watermark distillation
 
-Code for the paper's method (KGW-NT: KGW watermark distillation restricted to the near-tie support
-set), the baselines it is compared with (KGW, KGW-TK, SWEET, MorphMark), and the experiments of the
-paper: the detection/utility frontier, the query-budget curves, the near-tie restriction applied to
-SWEET and MorphMark, and the evaluation audit.
+Code for [*Language Model Fingerprinting Requires Rethinking Watermark Teachers*](https://arxiv.org/abs/2610.04169)
+(Hwang, Nasery, Oh and Ok, 2026): the method (KGW-NT: KGW watermark distillation restricted to the
+near-tie support set), the baselines it is compared with (KGW, KGW-TK, SWEET, MorphMark), and the
+experiments of the paper: the detection/utility frontier, the query-budget curves, the near-tie
+restriction applied to SWEET and MorphMark, and the evaluation audit.
 
 The package extends the watermark-distillation fingerprinting code of Gloaguen et al.
 ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints)) and keeps
@@ -158,3 +159,14 @@ docstring lists the mapping from flags to classes.
 ## Tests
 
 `pytest tests` runs on CPU.
+
+## Citation
+
+```bibtex
+@article{hwang2026fingerprinting,
+  title   = {Language Model Fingerprinting Requires Rethinking Watermark Teachers},
+  author  = {Hwang, Jeongyeon and Nasery, Anshul and Oh, Sewoong and Ok, Jungseul},
+  journal = {arXiv preprint arXiv:2610.04169},
+  year    = {2026}
+}
+```
