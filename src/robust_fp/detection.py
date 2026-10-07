@@ -5,8 +5,9 @@
 """Fingerprint detection: the pooled green-token statistic.
 
 A fingerprinted model is identified from ``N`` of its responses. Every completion token whose
-preceding ``k`` tokens are known carries a green/red label under the secret green list; the
-detector counts green labels over the responses and reports
+preceding ``k`` tokens lie in the completion carries a green/red label under the secret green list
+(the first ``k`` tokens of a response are not scored); the detector counts green labels over the
+responses and reports
 
     z = (G - gamma * T) / sqrt(gamma * (1 - gamma) * T)
 

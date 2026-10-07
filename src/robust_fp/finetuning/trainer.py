@@ -50,7 +50,10 @@ class DistillationTrainer(Trainer):
             )
 
         # For vocabularies of LARGE_VOCAB tokens and more (gemma-2) the loss is divided by
-        # gradient_accumulation_steps; the smaller vocabularies return it unscaled.
+        # gradient_accumulation_steps; the smaller vocabularies return it unscaled. The Trainer does
+        # not rescale a custom loss for these models, so the two regimes differ in loss scale. This is
+        # intentional: gemma-2 fits on an 80 GiB GPU only with batch 1 x 64 accumulation steps and was
+        # trained with the divided loss; the reported runs used exactly this scaling.
         if student_logits.shape[-1] >= LARGE_VOCAB and self.args.gradient_accumulation_steps > 1:
             total = total / self.args.gradient_accumulation_steps
         return (total, outputs) if return_outputs else total

@@ -14,7 +14,7 @@
 "Réponds uniquement en français." and asking for a complete 250-300 word text.
 `wildchat_fr.json.gz` is a gzip-compressed JSON list of `{"text": ...}` records: French conversations of
 [allenai/WildChat](https://huggingface.co/datasets/allenai/WildChat) rendered as plain text with the Llama 3.1
-chat template, with the date line removed from the template's default system header;
+chat template, with the `Today Date` line removed from the template's default system header;
 the same file is used for every model.
 
 The training corpora (LucieFr, AlpacaGPT4, OpenWebText) are streamed from the Hugging Face Hub; see

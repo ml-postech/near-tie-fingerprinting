@@ -9,9 +9,7 @@ from typing import Optional
 
 
 class UtilityTable:
-    """``utility/<model>/ppl_stats.json`` and ``ppl_raw.json`` as written by ``scripts/utility/score_ppl.py``.
-
-    """
+    """``utility/<model>/ppl_stats.json`` and ``ppl_raw.json`` as written by ``scripts/utility/score_ppl.py``."""
 
     def __init__(self, results: str, model: str):
         self.dir = os.path.join(results, "utility", model)

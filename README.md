@@ -25,6 +25,8 @@ pip install lm-eval        # optional, FrenchBench only
 pytest tests               # CPU
 ```
 
+The tests and the `robust_fp` package need only the first block of `requirements.txt` (torch, transformers, datasets, pydantic and friends); vLLM, llmcompressor and TRL are needed by the generation and robustness scripts alone and do not install on a CPU-only machine.
+
 A GPU with 80 GiB is needed for gemma-2 (the green-list mask of its 256k vocabulary is 61 GiB; 15 GiB for a 128k vocabulary). The mask is drawn by a CUDA generator, so a fingerprint must be detected on the same kind of device it was embedded with.
 
 **Embed a fingerprint**

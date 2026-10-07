@@ -77,7 +77,6 @@ def cell_arms(results: str, model: str, cell: str, arms=None, runs: int = RUNS) 
     return out
 
 
-
 # ---------------------------------------------------------------------------- query budget
 def query_budget_curves(results: str, model: str) -> Dict[tuple, list]:
     """``{(cell, arm, N): [z per run]}`` from every ``query_budget/<model>/curves*.jsonl`` file.
