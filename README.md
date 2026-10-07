@@ -9,7 +9,7 @@ by _Jeongyeon Hwang, Anshul Nasery, Sewoong Oh, and Jungseul Ok_.
 - We rethink watermark teachers for model fingerprinting, where verification aggregates evidence across responses. This permits sparser signals; our **near-tie restriction** places the bias only on green tokens close to the base model's top prediction.
 - Near-tie improves the detection–quality trade-off: on Llama-3.1-8B, at comparable worst-case detectability, the PPL ratio drops 6.09 → 1.04 and the judge score improves 3.52 → 7.40 (base 7.51). Improvements hold across four models and query budgets, and near-tie also improves existing watermarking schemes when combined with them.
 
-The code builds on the watermark-distillation fingerprinting framework of Gloaguen et al. ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints), license in `LICENSE_CODE`) the KGW green list of Kirchenbauer et al. ([jwkirchenbauer/lm-watermarking](https://github.com/jwkirchenbauer/lm-watermarking)), and the MorphMark rule of [MarkLLM](https://github.com/THU-BPM/MarkLLM) (Apache 2.0).
+The code builds on the watermark-distillation fingerprinting framework of Gloaguen et al. ([eth-sri/robust-llm-fingerprints](https://github.com/eth-sri/robust-llm-fingerprints), license in `LICENSE_CODE`), the KGW green list of Kirchenbauer et al. ([jwkirchenbauer/lm-watermarking](https://github.com/jwkirchenbauer/lm-watermarking)), and the MorphMark rule of [MarkLLM](https://github.com/THU-BPM/MarkLLM) (Apache 2.0).
 
 ## 🚀 Quick Start
 
